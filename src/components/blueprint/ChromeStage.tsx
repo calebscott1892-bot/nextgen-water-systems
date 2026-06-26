@@ -1,9 +1,9 @@
 "use client";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Environment, ContactShadows } from "@react-three/drei";
+import { Environment, ContactShadows, Html } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
-import { useMemo, useRef, type MutableRefObject } from "react";
+import { useMemo, useRef, useState, type MutableRefObject } from "react";
 import * as THREE from "three";
 
 /**
@@ -62,11 +62,11 @@ function Rig({ progress }: { progress: MutableRefObject<number> }) {
 }
 
 const STAGES = [
-  { y: -1.6, color: "#aab4bc" }, // sediment
-  { y: -0.8, color: "#3c444c" }, // carbon (lifted off black so it reads)
-  { y: 0.0, color: "#2b6a92" }, // RO membrane
-  { y: 0.8, color: "#4f93b8" }, // post-carbon
-  { y: 1.6, color: "#29c2ee" }, // re-mineralise
+  { y: -1.6, color: "#aab4bc", n: "01", title: "Sediment", sub: "20µm pre-filter*" },
+  { y: -0.8, color: "#3c444c", n: "02", title: "Carbon block", sub: "chlorine · taste*" },
+  { y: 0.0, color: "#2b6a92", n: "03", title: "RO membrane", sub: "lead · PFAS*" },
+  { y: 0.8, color: "#4f93b8", n: "04", title: "Post-carbon", sub: "final polish*" },
+  { y: 1.6, color: "#29c2ee", n: "05", title: "Re-mineralise", sub: "balanced pH*" },
 ];
 
 function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
@@ -77,6 +77,7 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
   const stageMatRefs = useRef<(THREE.MeshStandardMaterial | null)[]>([]);
   const topCap = useRef<THREE.Group>(null);
   const botCap = useRef<THREE.Group>(null);
+  const [labelsOn, setLabelsOn] = useState(false); // part labels during the split
 
   const housingGeo = useMemo(() => {
     const pts = [
@@ -107,6 +108,10 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
     const ex = ss(p, 0.58, 0.82); // split apart (overlaps entry so parts are already parting)
     const reform = ss(p, 0.88, 0.98); // reassemble + right itself (solid before the end)
     const explode = ex * (1 - reform);
+
+    // toggle the part labels at the explode threshold (one setState per crossing)
+    const wantLabels = explode > 0.4;
+    if (wantLabels !== labelsOn) setLabelsOn(wantLabels);
 
     if (g) {
       // registration offset/scale for the trace, released into the journey
@@ -193,6 +198,13 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
               emissiveIntensity={i === 4 ? 0.25 : 0}
             />
           </mesh>
+          <Html position={[0, 0, -1.05]} center zIndexRange={[12, 0]} className="stage-label-wrap">
+            <div className={`stage-label ${labelsOn ? "on" : ""}`.trim()}>
+              <span className="sl-n">{s.n}</span>
+              <span className="sl-t">{s.title}</span>
+              <span className="sl-s">{s.sub}</span>
+            </div>
+          </Html>
         </group>
       ))}
 

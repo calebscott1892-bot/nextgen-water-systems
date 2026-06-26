@@ -582,6 +582,38 @@
   .jd-revtable {
     z-index: 2;
   }
+  /* part labels on the exploded teardown (drei Html, fade in on the split) */
+  .stage-label {
+    font-family: var(--font-mono), monospace;
+    width: 132px;
+    text-align: center;
+    color: #e8f4fb;
+    opacity: 0;
+    transition: opacity 0.45s var(--ease);
+    pointer-events: none;
+    text-shadow: 0 1px 10px rgba(5, 8, 12, 0.95);
+  }
+  .stage-label.on {
+    opacity: 1;
+  }
+  .sl-n {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: #29c2ee;
+  }
+  .sl-t {
+    display: block;
+    font-family: var(--font-satoshi), sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    line-height: 1.2;
+  }
+  .sl-s {
+    display: block;
+    font-size: 10px;
+    color: #9fb4c2;
+  }
   .lw {
     fill: none;
     stroke-linecap: round;
