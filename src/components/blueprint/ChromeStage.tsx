@@ -35,9 +35,9 @@ const CAM: Key[] = [
   { p: 0.5, pos: [0, 0.2, 6.8], tgt: [0, 0, -0.4] }, // on its side, top toward us
   { p: 0.6, pos: [0, 0.1, 3.8], tgt: [0, 0, -1] }, // dive toward the top as it opens
   { p: 0.68, pos: [1.8, 0.5, 2.9], tgt: [0, 0, -0.6] }, // among the separating stages
-  { p: 0.78, pos: [5.2, 1.2, 7.0], tgt: [0, 0, 0] }, // pull back — split apart
-  { p: 0.88, pos: [6.4, 2.1, 7.8], tgt: [0, 0.1, 0] }, // exploded 3/4
-  { p: 1.0, pos: [3.2, 0.4, 8.6], tgt: [0, 0.2, 0] }, // settle
+  { p: 0.78, pos: [9.2, 1.4, 4.0], tgt: [0, 0, 0] }, // arc out to the side — spread reads across
+  { p: 0.88, pos: [9.6, 2.6, -2.2], tgt: [0, 0, 0] }, // orbit around the exploded assembly
+  { p: 1.0, pos: [3.2, 0.4, 8.6], tgt: [0, 0.2, 0] }, // settle front, reassembled
 ];
 
 function seg(p: number): [Key, Key] {
@@ -61,11 +61,11 @@ function Rig({ progress }: { progress: MutableRefObject<number> }) {
 }
 
 const STAGES = [
-  { y: -1.6, color: "#9aa3ab" },
-  { y: -0.8, color: "#0d1116" },
-  { y: 0.0, color: "#15425e" },
-  { y: 0.8, color: "#1c5f86" },
-  { y: 1.6, color: "#29c2ee" },
+  { y: -1.6, color: "#aab4bc" }, // sediment
+  { y: -0.8, color: "#3c444c" }, // carbon (lifted off black so it reads)
+  { y: 0.0, color: "#2b6a92" }, // RO membrane
+  { y: 0.8, color: "#4f93b8" }, // post-carbon
+  { y: 1.6, color: "#29c2ee" }, // re-mineralise
 ];
 
 function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
@@ -102,7 +102,7 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
     const reg = ss(p, 0.3, 0.4); // dock framing → full-size journey framing
     const onSide = ss(p, 0.4, 0.52); // rotate onto its side, lid toward viewer
     const ex = ss(p, 0.56, 0.8); // split apart (begins as the camera dives in)
-    const reform = ss(p, 0.92, 1.0); // reassemble + right itself
+    const reform = ss(p, 0.88, 0.98); // reassemble + right itself (solid before the end)
     const explode = ex * (1 - reform);
 
     if (g) {
@@ -114,20 +114,30 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
       g.rotation.x = (onSide - reform * onSide) * (Math.PI / 2); // on side, then right itself
     }
 
-    // housing fades to reveal the interior through the fly-through + split
+    // housing fades to a faint ghost to reveal the interior (kill the clearcoat/
+    // env reflections too, or a low-alpha mirror still reads as solid chrome)
+    const fade = ss(p, 0.52, 0.62) * (1 - ss(p, 0.88, 0.98));
     if (housingMat.current) {
-      const op = 1 - (ss(p, 0.52, 0.6) - ss(p, 0.94, 1.0)) * 0.92;
-      housingMat.current.opacity = op;
-      housingMat.current.transparent = op < 0.995;
+      const m = housingMat.current;
+      m.opacity = lerp(1, 0.06, fade);
+      m.transparent = m.opacity < 0.995;
+      m.depthWrite = m.opacity > 0.5;
+      m.envMapIntensity = lerp(1.3, 0, fade);
+      m.clearcoat = lerp(1, 0, fade);
+      m.metalness = lerp(1, 0.15, fade);
     }
-    if (glassMat.current) glassMat.current.opacity = 0.9 * (1 - explode * 0.7);
+    if (glassMat.current) {
+      const gm = glassMat.current;
+      gm.opacity = lerp(0.9, 0.04, fade);
+      gm.depthWrite = gm.opacity > 0.5;
+    }
 
-    // split the stack apart along the column axis
+    // split the stack apart along the column axis (even, generous spacing)
     stageRefs.current.forEach((sg, i) => {
-      if (sg) sg.position.y = STAGES[i].y + (i - 2) * explode * 1.15;
+      if (sg) sg.position.y = STAGES[i].y + (i - 2) * explode * 1.2;
     });
     if (topCap.current) topCap.current.position.y = 2.52 + explode * 1.7;
-    if (botCap.current) botCap.current.position.y = -2.05 - explode * 1.3;
+    if (botCap.current) botCap.current.position.y = -2.05 - explode * 1.45;
   });
 
   return (
