@@ -1,9 +1,12 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { Plate, Callout } from "./Plate";
 import { Button } from "@/components/ui/Button";
 import { CONTACT, SITE_REVISIONS } from "@/content/plates";
 import { SILHOUETTE_D, BEDS } from "@/components/blueprint/columnPaths";
+import { createCleanseStrip } from "@/components/fluid/cleanseStrip";
+import { useReducedMotion } from "@/lib/useReducedMotion";
 
 /* ───────────────────────── PLATE 02 — TRUST ───────────────────────── */
 function TrustPlate() {
@@ -90,6 +93,27 @@ const STAGES = [
   { n: "5", title: "RE-MINERALISE", job: "balanced pH & minerals*" },
 ];
 function FlowTestPlate() {
+  const reduced = useReducedMotion();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (reduced) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const strip = createCleanseStrip(canvas);
+    if (!strip.supported) return;
+    const ro = new ResizeObserver(() => strip.resize());
+    ro.observe(canvas);
+    const io = new IntersectionObserver(([e]) => (e.isIntersecting ? strip.start() : strip.stop()), { threshold: 0.05 });
+    io.observe(canvas);
+    requestAnimationFrame(() => strip.resize());
+    return () => {
+      io.disconnect();
+      ro.disconnect();
+      strip.destroy();
+    };
+  }, [reduced]);
+
   return (
     <Plate id="plate-flowtest" sheet="04" rev="F" name="SECTION A–A · FLOW TEST" plateNo="PLATE 04" kicker="REV F · SECTION A–A · FLOW TEST" className="sheet--center">
       <div className="flow-head">
@@ -104,7 +128,7 @@ function FlowTestPlate() {
         </p>
       </div>
       <div className="flow-stage">
-        <svg viewBox="0 0 600 900" className="flow-svg" aria-hidden="true">
+        <svg viewBox="280 90 470 730" className="flow-svg" aria-hidden="true">
           <defs>
             <linearGradient id="flowGrad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#5c5638" />
@@ -115,17 +139,17 @@ function FlowTestPlate() {
             <clipPath id="flowClip">
               <path d={SILHOUETTE_D} />
             </clipPath>
-            <pattern id="fh-vert" width="7" height="7" patternUnits="userSpaceOnUse">
-              <path d="M2 0V7" stroke="#28506f" strokeWidth="0.8" opacity="0.4" />
-            </pattern>
           </defs>
-          {/* turbid → clear body (static fallback for the WebGL strip) */}
+          {/* static turbid→clear fallback (shows if WebGL is unavailable) */}
           <g clipPath="url(#flowClip)">
             <rect x="324" y="120" width="312" height="640" fill="url(#flowGrad)" />
-            <rect x="324" y="120" width="312" height="640" fill="url(#fh-vert)" opacity="0.5" />
           </g>
-          {/* the drawn section */}
-          <path className="lw-draw lw-heavy2" d={SILHOUETTE_D} pathLength={1} />
+          {/* live WebGL flow test, masked to the column */}
+          <foreignObject x="324" y="120" width="312" height="640" clipPath="url(#flowClip)">
+            <canvas ref={canvasRef} className="flow-canvas" />
+          </foreignObject>
+          {/* the drawn section, on top */}
+          <path className="lw-draw lw-heavy2" d={SILHOUETTE_D} pathLength={1} fill="none" />
           {BEDS.map((b) => (
             <line key={b.id} className="lw-draw lw-hair2" x1="340" y1={b.y0} x2="620" y2={b.y0} pathLength={1} />
           ))}
