@@ -546,7 +546,7 @@
   /* ---- The Living Drawing (draughting plate) ---- */
   .plate {
     position: relative;
-    height: 320svh;
+    height: 600svh;
     background: #05080c;
   }
   .plate-stick {
@@ -574,6 +574,13 @@
     display: block;
     width: 100%;
     height: 100%;
+  }
+  /* draughting furniture sits above both the canvas (z0) and the SVG (z1) */
+  .jd-note,
+  .jd-titleblock,
+  .jd-bomlist,
+  .jd-revtable {
+    z-index: 2;
   }
   .lw {
     fill: none;

@@ -145,23 +145,27 @@ export function LivingDrawing() {
         invalidateOnRefresh: true,
         onUpdate: (self) => {
           const p = self.progress;
-          // there-and-back: 0 → 1 (full plate at mid) → 0 (chrome returns).
-          // The blueprint is the peak; it reverts to the real asset at the end.
-          const u = 1 - Math.abs(1 - 2 * p);
-          tl.progress(gsap.utils.clamp(0, 1, u));
+          // The 3D journey owns the whole scroll (orbit → dock → rotate → through
+          // → split → settle). The blueprint round trip is ONE early act: a
+          // windowed there-and-back over p∈[0.04, 0.32] (chrome → trace → plate →
+          // revert to chrome), after which the camera journey carries on.
+          const bp = gsap.utils.clamp(0, 1, gsap.utils.mapRange(0.04, 0.32, 0, 1, p));
+          const bpU = 1 - Math.abs(1 - 2 * bp);
+          tl.progress(bpU);
 
-          // feed the live 3D chrome + cross-fade the canvas out as paper rises
-          u3d.current = u;
+          // 3D reads the raw journey scalar; the canvas hides only while the
+          // vellum plate is full (so the drawing reads as ink, not ink-over-chrome)
+          u3d.current = p;
           if (canvasWrapRef.current) {
             canvasWrapRef.current.style.opacity = String(
-              gsap.utils.clamp(0, 1, gsap.utils.mapRange(0.34, 0.44, 1, 0, u)),
+              gsap.utils.clamp(0, 1, gsap.utils.mapRange(0.46, 0.62, 1, 0, bpU)),
             );
           }
 
-          // the floating metal keeps a slight dimensional tilt while it's still
-          // chrome (both entering and reverting) — settles flat as it inks
-          if (col) {
-            const t = gsap.utils.clamp(0, 1, gsap.utils.mapRange(0, 0.24, 1, 0, u));
+          // fallback-only parallax tilt on the SVG still (when there's no live 3D
+          // chrome to register against); with WebGL the ink must stay un-skewed
+          if (col && !webgl) {
+            const t = gsap.utils.clamp(0, 1, gsap.utils.mapRange(0, 0.24, 1, 0, bpU));
             col.setAttribute(
               "transform",
               `translate(480 446) skewY(${-2.4 * t}) scale(${1 + 0.05 * t}, ${1 + 0.02 * t}) translate(-480 -446)`,
