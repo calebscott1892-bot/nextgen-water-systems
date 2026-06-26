@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
+import { useEffect, useRef, useState } from "react";
 import { gsap, ScrollTrigger } from "@/lib/gsap";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 import {
@@ -12,6 +13,18 @@ import {
   BOM_ROWS,
   REVISIONS,
 } from "./columnPaths";
+
+// the live chrome asset — client-only (three touches window at module load)
+const ChromeStage = dynamic(() => import("./ChromeStage"), { ssr: false });
+
+function hasWebGL(): boolean {
+  try {
+    const c = document.createElement("canvas");
+    return !!(c.getContext("webgl2") || c.getContext("webgl"));
+  } catch {
+    return false;
+  }
+}
 
 /**
  * THE TURN — the asset becomes its own drawing, in one continuous move. A shaded
@@ -37,6 +50,14 @@ export function LivingDrawing() {
   const reduced = useReducedMotion();
   const rootRef = useRef<HTMLElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const canvasWrapRef = useRef<HTMLDivElement>(null);
+  const u3d = useRef(0); // the there-and-back scalar, shared with the 3D stage
+  const [webgl, setWebgl] = useState(false);
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    setWebgl(!reduced && hasWebGL());
+  }, [reduced]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -83,7 +104,7 @@ export function LivingDrawing() {
 
     const ctx = gsap.context(() => {
       gsap.set(paper, { opacity: 0 });
-      gsap.set(shade, { opacity: 1 });
+      gsap.set(shade, { opacity: webgl ? 0 : 1 }); // 3D chrome replaces the SVG still
       gsap.set([beds, bom, dimG], { opacity: 0 });
       gsap.set(construct, { opacity: 1 });
       gsap.set(furniture, { opacity: 0 });
@@ -103,7 +124,7 @@ export function LivingDrawing() {
       // 3 — the world turns: paper rises, chrome dissolves, white ink settles to navy
       tl.to(paper, { opacity: 1, duration: 0.12, ease: "power1.inOut" }, 0.4);
       tl.to(furniture, { opacity: 1, duration: 0.12, ease: "power1.inOut" }, 0.42);
-      tl.to(shade, { opacity: 0, duration: 0.12, ease: "power1.inOut" }, 0.4);
+      if (!webgl) tl.to(shade, { opacity: 0, duration: 0.12, ease: "power1.inOut" }, 0.4);
       tl.to(inkG, { color: "#15324a", duration: 0.14, ease: "power1.inOut" }, 0.4);
       // 4 — construction geometry dims once the ink carries the form
       tl.to(construct, { opacity: 0.16, duration: 0.08, ease: "power1.inOut" }, 0.52);
@@ -128,6 +149,14 @@ export function LivingDrawing() {
           // The blueprint is the peak; it reverts to the real asset at the end.
           const u = 1 - Math.abs(1 - 2 * p);
           tl.progress(gsap.utils.clamp(0, 1, u));
+
+          // feed the live 3D chrome + cross-fade the canvas out as paper rises
+          u3d.current = u;
+          if (canvasWrapRef.current) {
+            canvasWrapRef.current.style.opacity = String(
+              gsap.utils.clamp(0, 1, gsap.utils.mapRange(0.34, 0.44, 1, 0, u)),
+            );
+          }
 
           // the floating metal keeps a slight dimensional tilt while it's still
           // chrome (both entering and reverting) — settles flat as it inks
@@ -160,12 +189,26 @@ export function LivingDrawing() {
     }, root);
 
     return () => ctx.revert();
-  }, [reduced]);
+  }, [reduced, webgl]);
+
+  // pause the 3D frameloop when the section is off-screen
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || !webgl) return;
+    const io = new IntersectionObserver(([e]) => setActive(e.isIntersecting), { threshold: 0 });
+    io.observe(root);
+    return () => io.disconnect();
+  }, [webgl]);
 
   return (
     <section ref={rootRef} className="plate" id="drawing">
       <div className="plate-stick">
         <div className="plate-sheet">
+          {webgl && (
+            <div className="plate-canvas" ref={canvasWrapRef}>
+              <ChromeStage progress={u3d} active={active} />
+            </div>
+          )}
           <svg ref={svgRef} className="plate-svg" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMid meet">
             <defs>
               <radialGradient id="vellum" cx="46%" cy="40%" r="75%">
