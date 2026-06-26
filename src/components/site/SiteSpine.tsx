@@ -198,8 +198,8 @@ function BenchmarkPlate() {
                 <td>
                   <span className="dim-row">
                     <span className="dim-bar" style={{ width: `${r.v}%` }} />
-                    <span className="dim-val">
-                      {r.c === "SEDIMENT" ? ">" : "up to "}
+                    <span className="dim-val" data-count={r.v} data-prefix={r.c === "SEDIMENT" ? "> " : "up to "} data-suffix="%*">
+                      {r.c === "SEDIMENT" ? "> " : "up to "}
                       {r.v}%*
                     </span>
                   </span>

@@ -19,16 +19,16 @@ export function Nav() {
           Next&nbsp;Gen
         </Link>
         <nav className="nav-links" aria-label="Primary">
-          <a className="navlink" href="#system" data-cursor>
+          <a className="navlink" href="#plate-flowtest" data-cursor>
             The system
           </a>
-          <a className="navlink" href="#benchmark" data-cursor>
+          <a className="navlink" href="#plate-benchmark" data-cursor>
             Performance
           </a>
-          <a className="navlink" href="#process" data-cursor>
+          <a className="navlink" href="#plate-process" data-cursor>
             How it works
           </a>
-          <Button variant="ghost" href="#book">
+          <Button variant="ghost" href="#plate-cta">
             Book water test
           </Button>
         </nav>

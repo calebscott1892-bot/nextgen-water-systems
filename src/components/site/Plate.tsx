@@ -6,9 +6,10 @@ import { useReducedMotion } from "@/lib/useReducedMotion";
 
 /**
  * A reusable drawing SHEET. Double border + plate-number header + corner datum
- * tick; on enter a cyan scan-line sweeps and the content draws in (CSS, via an
- * `is-drawn` class toggled by ScrollTrigger). Reduced motion → drawn immediately.
- * Carries `data-sheet/rev/name` so the persistent DrawingChrome can read it.
+ * tick; on enter a cyan scan-line sweeps and the sheet RE-DRAFTS itself — the
+ * linework draws on (stroke-dashoffset), callouts arrive in sequence, and any
+ * [data-count] figures tick up. Reduced motion → drawn immediately. Carries
+ * `data-sheet/rev/name` so the persistent DrawingChrome can read it.
  */
 export function Plate({
   id,
@@ -35,16 +36,39 @@ export function Plate({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    const counts = Array.from(el.querySelectorAll<HTMLElement>("[data-count]"));
+
     if (reduced) {
       el.classList.add("is-drawn");
+      counts.forEach((c) => (c.textContent = formatCount(c, +(c.dataset.count || 0))));
       return;
     }
+
+    // The whole reveal (content arrive + linework draw-on) is CSS, gated on the
+    // reliably-toggled `is-drawn` class — so content can never get stuck hidden.
+    // GSAP only ticks the figures up, and degrades to the static value if it
+    // doesn't run. `is-animated` opts the sheet into the hidden-until-drawn state
+    // only once JS is alive (no-JS shows everything).
+    el.classList.add("is-animated");
+
     const ctx = gsap.context(() => {
       ScrollTrigger.create({
         trigger: el,
-        start: "top 72%",
-        onEnter: () => el.classList.add("is-drawn"),
-        onLeaveBack: () => el.classList.remove("is-drawn"),
+        start: "top 74%",
+        onEnter: () => {
+          if (el.classList.contains("is-drawn")) return;
+          el.classList.add("is-drawn");
+          counts.forEach((c) => {
+            const end = +(c.dataset.count || 0);
+            const o = { v: 0 };
+            gsap.to(o, {
+              v: end,
+              duration: 0.9,
+              ease: "power1.out",
+              onUpdate: () => (c.textContent = formatCount(c, o.v)),
+            });
+          });
+        },
       });
     }, el);
     return () => ctx.revert();
@@ -70,6 +94,10 @@ export function Plate({
       </div>
     </section>
   );
+}
+
+function formatCount(c: HTMLElement, v: number) {
+  return `${c.dataset.prefix || ""}${Math.round(v)}${c.dataset.suffix || ""}`;
 }
 
 /** A drawing callout: balloon number → leader line + arrowhead → figure + note. */
