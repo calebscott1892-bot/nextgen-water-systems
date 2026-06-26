@@ -1,15 +1,16 @@
 import { Nav } from "@/components/Nav";
-import { PurificationHero } from "@/components/hero/PurificationHero";
+import { FilterJourney } from "@/components/journey/FilterJourney";
 
 export default function Home() {
   return (
     <>
       <Nav />
       <main>
-        <PurificationHero />
+        <FilterJourney />
         {/*
-          HERO MILESTONE: signature visual only, per the brief. The 12-section
-          homepage lands after the hero is approved on real hardware.
+          SIGNATURE MILESTONE: the 3D teardown journey, beats 0–4 (emerge → orbit
+          → through → cross-section). Explode/benchmark/labels + the full section
+          spine follow after sign-off, per the brief.
         */}
       </main>
     </>
