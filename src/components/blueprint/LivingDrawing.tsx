@@ -60,6 +60,7 @@ export function LivingDrawing() {
     const construct = q<SVGGElement>(".jd-construct");
     const col = q<SVGGElement>(".jd-col");
     const dimG = q<SVGGElement>(".jd-dim");
+    const inkG = q<SVGGElement>(".jd-ink");
     const revRows = Array.from(root.querySelectorAll<HTMLElement>(".jd-rev-row"));
     const furniture = [".jd-note", ".jd-titleblock", ".jd-bomlist", ".jd-revtable"]
       .map((s) => root.querySelector<HTMLElement>(s))
@@ -73,6 +74,7 @@ export function LivingDrawing() {
       if (bom) bom.style.opacity = "1";
       if (dimG) dimG.style.opacity = "1";
       if (construct) construct.style.opacity = "0.16";
+      if (inkG) inkG.style.color = "#15324a";
       if (tip) tip.style.opacity = "0";
       furniture.forEach((f) => (f.style.opacity = "1"));
       revRows.forEach((r) => (r.style.opacity = "1"));
@@ -85,28 +87,33 @@ export function LivingDrawing() {
       gsap.set([beds, bom, dimG], { opacity: 0 });
       gsap.set(construct, { opacity: 1 });
       gsap.set(furniture, { opacity: 0 });
+      gsap.set(inkG, { color: "#f4f9fc" }); // white ink, traced over the chrome
       revRows.forEach((r) => gsap.set(r, { opacity: 0 }));
 
+      // ONE-WAY "build" timeline: chrome still → traced in white over it → paper
+      // rises, ink settles to navy → fully detailed plate. The round trip comes
+      // from driving tl.progress with a there-and-back scalar (see onUpdate).
       const tl = gsap.timeline({ paused: true, defaults: { ease: "none" } });
 
-      // 1 — construction "measuring" lays down over the dark void
-      con.forEach((p, i) => tl.to(p, { strokeDashoffset: 0, duration: 0.05, ease: "power1.out" }, 0.06 + i * 0.022));
-      // 2 — paper materialises, the shaded metal dissolves into linework
-      tl.to(paper, { opacity: 1, duration: 0.12, ease: "power1.inOut" }, 0.17);
-      tl.to(furniture, { opacity: 1, duration: 0.12, ease: "power1.inOut" }, 0.2);
-      tl.to(shade, { opacity: 0, duration: 0.14, ease: "power1.inOut" }, 0.19);
-      // 3 — the pen traces the column, in draughtsperson order
-      const span = 0.3 / ink.length;
-      ink.forEach((p, i) => tl.to(p, { strokeDashoffset: 0, duration: span * 1.7, ease: "power2.inOut" }, 0.27 + i * span));
+      // 1 — construction "measuring" lays down over the chrome on the void
+      con.forEach((p, i) => tl.to(p, { strokeDashoffset: 0, duration: 0.05, ease: "power1.out" }, 0.04 + i * 0.018));
+      // 2 — WHITE ink traces over the live chrome still, draughtsperson order
+      const span = 0.34 / ink.length;
+      ink.forEach((p, i) => tl.to(p, { strokeDashoffset: 0, duration: span * 1.7, ease: "power2.inOut" }, 0.12 + i * span));
+      // 3 — the world turns: paper rises, chrome dissolves, white ink settles to navy
+      tl.to(paper, { opacity: 1, duration: 0.12, ease: "power1.inOut" }, 0.4);
+      tl.to(furniture, { opacity: 1, duration: 0.12, ease: "power1.inOut" }, 0.42);
+      tl.to(shade, { opacity: 0, duration: 0.12, ease: "power1.inOut" }, 0.4);
+      tl.to(inkG, { color: "#15324a", duration: 0.14, ease: "power1.inOut" }, 0.4);
       // 4 — construction geometry dims once the ink carries the form
-      tl.to(construct, { opacity: 0.16, duration: 0.08, ease: "power1.inOut" }, 0.48);
-      // 5 — media beds hatch in, balloons + dimensions snap on
-      tl.to(beds, { opacity: 1, duration: 0.14 }, 0.58);
-      tl.to(dimG, { opacity: 1, duration: 0.02 }, 0.62);
-      dim.forEach((p, i) => tl.to(p, { strokeDashoffset: 0, duration: 0.06, ease: "power2.out" }, 0.62 + i * 0.03));
-      tl.to(bom, { opacity: 1, duration: 0.1 }, 0.66);
+      tl.to(construct, { opacity: 0.16, duration: 0.08, ease: "power1.inOut" }, 0.52);
+      // 5 — media beds hatch in, dimensions + balloons snap on
+      tl.to(beds, { opacity: 1, duration: 0.12 }, 0.6);
+      tl.to(dimG, { opacity: 1, duration: 0.02 }, 0.66);
+      dim.forEach((p, i) => tl.to(p, { strokeDashoffset: 0, duration: 0.06, ease: "power2.out" }, 0.66 + i * 0.03));
+      tl.to(bom, { opacity: 1, duration: 0.1 }, 0.7);
       // 6 — revision rows accrue (the progress spine)
-      const revAt = [0.3, 0.6, 0.86];
+      const revAt = [0.3, 0.56, 0.82];
       revRows.forEach((r, i) => tl.to(r, { opacity: 1, duration: 0.04 }, revAt[i] ?? 0.5));
 
       ScrollTrigger.create({
@@ -117,19 +124,22 @@ export function LivingDrawing() {
         invalidateOnRefresh: true,
         onUpdate: (self) => {
           const p = self.progress;
-          tl.progress(p);
+          // there-and-back: 0 → 1 (full plate at mid) → 0 (chrome returns).
+          // The blueprint is the peak; it reverts to the real asset at the end.
+          const u = 1 - Math.abs(1 - 2 * p);
+          tl.progress(gsap.utils.clamp(0, 1, u));
 
-          // pre-ink parallax: the floating metal has a slight dimensional tilt that
-          // settles flat exactly as the paper arrives — the 3D feel hands off to ink
+          // the floating metal keeps a slight dimensional tilt while it's still
+          // chrome (both entering and reverting) — settles flat as it inks
           if (col) {
-            const t = gsap.utils.clamp(0, 1, gsap.utils.mapRange(0, 0.27, 1, 0, p));
+            const t = gsap.utils.clamp(0, 1, gsap.utils.mapRange(0, 0.24, 1, 0, u));
             col.setAttribute(
               "transform",
               `translate(480 446) skewY(${-2.4 * t}) scale(${1 + 0.05 * t}, ${1 + 0.02 * t}) translate(-480 -446)`,
             );
           }
 
-          // pencil-tip rides the active stroke head
+          // pen-tip rides the active stroke head (and rides it backward on revert)
           if (tip) {
             const active = ink.find((pp) => {
               const o = parseFloat(pp.style.strokeDashoffset || "0");
@@ -258,7 +268,7 @@ export function LivingDrawing() {
                     d={p.d}
                     pathLength={1}
                     fill="none"
-                    stroke={STROKE[p.weight][0]}
+                    stroke="currentColor"
                     strokeWidth={STROKE[p.weight][1]}
                     strokeLinecap="round"
                     strokeLinejoin="round"
