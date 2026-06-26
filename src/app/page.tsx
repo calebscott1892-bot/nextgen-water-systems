@@ -1,18 +1,18 @@
 import { Nav } from "@/components/Nav";
 import { LivingDrawing } from "@/components/blueprint/LivingDrawing";
+import { DrawingChrome } from "@/components/site/DrawingChrome";
+import { SiteSpine } from "@/components/site/SiteSpine";
 
 export default function Home() {
   return (
     <>
       <Nav />
+      <DrawingChrome />
       <main>
-        {/*
-          THE LIVING DRAWING — proof slice of the new direction: the NGW-01 column
-          traced onto a real draughting plate as you scroll. Next: realistic 3D
-          hero bookend (FilterJourney, kept dormant), exterior orbit + model
-          spruce, Section A–A descent, and the FLOW TEST cleansing strip → CTA.
-        */}
+        {/* SHEET 01 — the 3D journey signature (chrome → blueprint → teardown). */}
         <LivingDrawing />
+        {/* SHEET 02–09 — the rest of the drawing set, one bound document. */}
+        <SiteSpine />
       </main>
     </>
   );
