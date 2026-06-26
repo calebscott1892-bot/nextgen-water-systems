@@ -288,7 +288,7 @@
   /* ---- 3D teardown journey ---- */
   .journey {
     position: relative;
-    height: 500svh; /* beats 0–4 scroll distance (extended for 5–9 later) */
+    height: 720svh; /* beats 0–5 scroll distance (extended for 6–9 later) */
   }
   .journey-stage {
     position: relative;
@@ -407,6 +407,80 @@
   .journey-static-inner {
     position: relative;
     z-index: 3;
+  }
+  /* per-beat copy moves around the frame (not the same spot) */
+  .jbeat--section {
+    left: auto;
+    right: 0;
+    text-align: right;
+  }
+  .jbeat--benchmark {
+    left: auto;
+    right: 0;
+    text-align: right;
+    max-width: 30ch;
+  }
+  .jbeat--problem {
+    max-width: 26ch;
+  }
+  /* spatial part labels (drei Html, parented to each stage → they travel) */
+  .jlabel {
+    position: relative;
+    width: 158px;
+    pointer-events: none;
+    font-family: var(--font-mono), monospace;
+    color: var(--ice);
+    transform: translateY(-50%);
+    opacity: 0;
+    animation: jlabelIn 0.5s var(--ease) forwards;
+    text-shadow: 0 1px 8px rgba(5, 8, 12, 0.9);
+  }
+  .jlabel-line {
+    position: absolute;
+    left: -16px;
+    top: 50%;
+    width: 13px;
+    height: 1px;
+    background: var(--cyan);
+  }
+  .jlabel-line::before {
+    content: "";
+    position: absolute;
+    left: -3px;
+    top: -2px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan);
+  }
+  .jlabel-n {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--cyan);
+  }
+  .jlabel-t {
+    display: block;
+    font-family: var(--font-satoshi), sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 1.2;
+  }
+  .jlabel-s {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  @keyframes jlabelIn {
+    from {
+      opacity: 0;
+      transform: translateY(-50%) translateX(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(-50%) translateX(0);
+    }
   }
 
   .reveal {

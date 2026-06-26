@@ -87,6 +87,6 @@ export const BEATS: Beat[] = [
   },
 ];
 
-/** Phase 1 implements beats 0–4 (emerge → orbit → through → cross-section). */
-export const PHASE1_MAX_P = 0.6;
+/** Phase 1 implements beats 0–5 (emerge → orbit → through → cross-section → explode). */
+export const PHASE1_MAX_P = 0.74;
 export const PHASE1_BEATS = BEATS.filter((b) => b.range[0] < PHASE1_MAX_P);

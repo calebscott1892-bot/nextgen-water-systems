@@ -106,7 +106,7 @@ export function FilterJourney() {
     <section className="journey" id="top" ref={rootRef}>
       <div className="journey-stage">
         <div className="journey-fallback journey-fallback--behind" aria-hidden="true" />
-        <FilterScene progress={progress} active={active} />
+        <FilterScene progress={progress} active={active} beat={beat} />
         <div className="journey-grad" aria-hidden="true" />
 
         <div className="journey-hud">
