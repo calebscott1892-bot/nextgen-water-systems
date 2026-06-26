@@ -305,6 +305,7 @@
       radial-gradient(60% 50% at 50% 30%, rgba(41, 194, 238, 0.12), transparent 60%),
       radial-gradient(80% 60% at 50% 122%, rgba(15, 111, 176, 0.3), transparent 72%),
       var(--void);
+    transition: background 0.7s var(--ease);
   }
   .journey-fallback--behind {
     z-index: 0;
@@ -481,6 +482,65 @@
       opacity: 1;
       transform: translateY(-50%) translateX(0);
     }
+  }
+
+  /* ---- blueprint mode (beats 3–5): scene flips to a light technical schematic ---- */
+  .journey.is-blueprint .journey-fallback {
+    background: radial-gradient(75% 65% at 50% 42%, #f3f8fc 0%, #dde8f0 70%, #cdd9e3 100%);
+  }
+  .journey.is-blueprint .journey-grid {
+    opacity: 0.55;
+    background-image: linear-gradient(rgba(20, 64, 110, 0.16) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(20, 64, 110, 0.16) 1px, transparent 1px);
+    background-size: 32px 32px;
+    -webkit-mask: none;
+    mask: none;
+  }
+  .journey.is-blueprint .journey-grad {
+    background: linear-gradient(
+      90deg,
+      rgba(240, 246, 251, 0.72) 0%,
+      rgba(240, 246, 251, 0.22) 42%,
+      transparent 64%
+    );
+  }
+  .journey.is-blueprint .journey-h1 {
+    color: #0f2c47;
+  }
+  .journey.is-blueprint .journey-sub {
+    color: #45617a;
+  }
+  .journey.is-blueprint .hero-eyebrow {
+    color: #1f5c8a;
+  }
+  .journey.is-blueprint .hero-eyebrow .ln {
+    background: #1f5c8a;
+  }
+  .journey.is-blueprint .jlabel {
+    color: #0f2c47;
+    text-shadow: 0 1px 6px rgba(255, 255, 255, 0.75);
+  }
+  .journey.is-blueprint .jlabel-t {
+    color: #0f2c47;
+  }
+  .journey.is-blueprint .jlabel-s {
+    color: #5a728a;
+  }
+  .journey.is-blueprint .jlabel-n {
+    color: #1f5c8a;
+  }
+  .journey.is-blueprint .jlabel-line,
+  .journey.is-blueprint .jlabel-line::before {
+    background: #1f5c8a;
+    box-shadow: none;
+  }
+  .journey.is-blueprint .journey-progress i {
+    border-color: #6f8aa3;
+  }
+  .journey.is-blueprint .journey-progress i.on {
+    background: #1f5c8a;
+    border-color: #1f5c8a;
+    box-shadow: none;
   }
 
   .reveal {

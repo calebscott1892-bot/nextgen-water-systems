@@ -102,8 +102,10 @@ export function FilterJourney() {
     );
   }
 
+  const blueprint = beat >= 3 && beat <= 5; // schematic stretch (labelled deconstruction)
+
   return (
-    <section className="journey" id="top" ref={rootRef}>
+    <section className={`journey ${blueprint ? "is-blueprint" : ""}`.trim()} id="top" ref={rootRef}>
       <div className="journey-stage">
         <div className="journey-fallback journey-fallback--behind" aria-hidden="true" />
         <FilterScene progress={progress} active={active} beat={beat} />
