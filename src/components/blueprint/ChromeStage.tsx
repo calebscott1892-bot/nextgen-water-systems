@@ -32,10 +32,11 @@ const CAM: Key[] = [
   { p: 0.1, pos: [0, 0.0, 8.2], tgt: [0, 0.3, 0] }, // front dock (trace)
   { p: 0.3, pos: [0, 0.0, 8.2], tgt: [0, 0.3, 0] }, // hold dock through the drawing
   { p: 0.4, pos: [0, 0.1, 8.4], tgt: [0, 0, 0] }, // chrome back, full size
-  { p: 0.5, pos: [0, 0.2, 6.8], tgt: [0, 0, -0.4] }, // on its side, top toward us
-  { p: 0.6, pos: [0, 0.1, 3.8], tgt: [0, 0, -1] }, // dive toward the top as it opens
-  { p: 0.68, pos: [1.8, 0.5, 2.9], tgt: [0, 0, -0.6] }, // among the separating stages
-  { p: 0.78, pos: [9.2, 1.4, 4.0], tgt: [0, 0, 0] }, // arc out to the side — spread reads across
+  { p: 0.5, pos: [0, 0.2, 7.0], tgt: [0, 0, -1] }, // on its side, top toward us
+  { p: 0.57, pos: [0, 0.05, 3.2], tgt: [0, 0, -2.5] }, // dive into the top — the chamber tints
+  { p: 0.63, pos: [1.5, 0.5, 2.6], tgt: [0, 0, -0.3] }, // among the parting stages (media up close)
+  { p: 0.72, pos: [6.0, 1.1, 5.6], tgt: [0, 0, 0] }, // pull back through the split
+  { p: 0.8, pos: [9.2, 1.4, 4.0], tgt: [0, 0, 0] }, // arc out side-on — the split reads across
   { p: 0.88, pos: [9.6, 2.6, -2.2], tgt: [0, 0, 0] }, // orbit around the exploded assembly
   { p: 1.0, pos: [3.2, 0.4, 8.6], tgt: [0, 0.2, 0] }, // settle front, reassembled
 ];
@@ -73,6 +74,7 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
   const housingMat = useRef<THREE.MeshPhysicalMaterial>(null);
   const glassMat = useRef<THREE.MeshPhysicalMaterial>(null);
   const stageRefs = useRef<(THREE.Group | null)[]>([]);
+  const stageMatRefs = useRef<(THREE.MeshStandardMaterial | null)[]>([]);
   const topCap = useRef<THREE.Group>(null);
   const botCap = useRef<THREE.Group>(null);
 
@@ -101,7 +103,8 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
     const dock = ss(p, 0.04, 0.1); // settled to dock
     const reg = ss(p, 0.3, 0.4); // dock framing → full-size journey framing
     const onSide = ss(p, 0.4, 0.52); // rotate onto its side, lid toward viewer
-    const ex = ss(p, 0.56, 0.8); // split apart (begins as the camera dives in)
+    const through = ss(p, 0.52, 0.58) * (1 - ss(p, 0.62, 0.68)); // brief chamber tint on entry
+    const ex = ss(p, 0.58, 0.82); // split apart (overlaps entry so parts are already parting)
     const reform = ss(p, 0.88, 0.98); // reassemble + right itself (solid before the end)
     const explode = ex * (1 - reform);
 
@@ -116,7 +119,7 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
 
     // housing fades to a faint ghost to reveal the interior (kill the clearcoat/
     // env reflections too, or a low-alpha mirror still reads as solid chrome)
-    const fade = ss(p, 0.52, 0.62) * (1 - ss(p, 0.88, 0.98));
+    const fade = ss(p, 0.5, 0.58) * (1 - ss(p, 0.88, 0.98));
     if (housingMat.current) {
       const m = housingMat.current;
       m.opacity = lerp(1, 0.06, fade);
@@ -131,6 +134,17 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
       gm.opacity = lerp(0.9, 0.04, fade);
       gm.depthWrite = gm.opacity > 0.5;
     }
+
+    // during the fly-through the stages turn translucent so the camera passes
+    // down the bore and each chamber TINTS the view (a journey through, not a
+    // wall of solid discs); opaque again for the readable exploded view
+    stageMatRefs.current.forEach((m) => {
+      if (m) {
+        m.opacity = lerp(1, 0.32, through);
+        m.transparent = m.opacity < 0.995;
+        m.depthWrite = m.opacity > 0.5;
+      }
+    });
 
     // split the stack apart along the column axis (even, generous spacing)
     stageRefs.current.forEach((sg, i) => {
@@ -168,7 +182,16 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
         >
           <mesh>
             <cylinderGeometry args={[0.7, 0.7, 0.74, 40]} />
-            <meshStandardMaterial color={s.color} metalness={i === 2 || i === 4 ? 0.35 : 0.1} roughness={0.62} emissive={i === 4 ? "#0c4a61" : "#000000"} emissiveIntensity={i === 4 ? 0.25 : 0} />
+            <meshStandardMaterial
+              ref={(el) => {
+                stageMatRefs.current[i] = el;
+              }}
+              color={s.color}
+              metalness={i === 2 || i === 4 ? 0.35 : 0.1}
+              roughness={0.62}
+              emissive={i === 4 ? "#0c4a61" : "#000000"}
+              emissiveIntensity={i === 4 ? 0.25 : 0}
+            />
           </mesh>
         </group>
       ))}
