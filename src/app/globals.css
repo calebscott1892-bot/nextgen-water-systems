@@ -631,6 +631,7 @@
     display: flex;
     justify-content: center;
     padding: clamp(40px, 7vw, 96px) clamp(14px, 4vw, 40px);
+    scroll-margin-top: 76px;
   }
   .sheet-frame {
     position: relative;
@@ -1488,10 +1489,12 @@
   }
 
   @media (max-width: 760px) {
+    /* sheets stack to one column */
     .sheet-split,
     .flow-stage,
     .house-wrap {
       grid-template-columns: 1fr;
+      gap: 28px;
     }
     .process {
       grid-template-columns: 1fr;
@@ -1499,12 +1502,89 @@
     .process::before {
       display: none;
     }
+    .sheet {
+      padding: 56px clamp(10px, 4vw, 20px);
+    }
+    .sheet-frame {
+      padding: clamp(18px, 6vw, 30px);
+    }
+    .sheet-head {
+      font-size: 8.5px;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .notes-col {
+      border-left: none;
+      padding-left: 0;
+    }
+
+    /* nav: brand + the one CTA only */
+    .navlink {
+      display: none;
+    }
+    .nav-links {
+      gap: 12px;
+    }
+
+    /* detail circle: callouts re-flow below the drawing */
+    .detail-wrap {
+      display: flex;
+      flex-direction: column;
+    }
+    .detail-svg {
+      max-width: 320px;
+      margin: 0 auto;
+    }
+    .detail-callouts {
+      display: grid;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .detail-callouts .dc {
+      position: static;
+    }
+
+    /* flow column smaller; schedule scrolls horizontally */
+    .flow-svg {
+      max-width: 280px;
+    }
+    .schedule-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .schedule {
+      min-width: 480px;
+    }
+    .schedule-stamp {
+      position: static;
+      display: inline-block;
+      margin-bottom: 12px;
+      transform: none;
+    }
+    .cta-h {
+      font-size: clamp(30px, 10vw, 56px);
+    }
+
+    /* chrome collapses to a compact chip */
     .chrome-rev {
       display: none;
     }
-    .chrome-tb {
-      width: 168px;
+    .chrome {
+      right: 8px;
+      bottom: 8px;
     }
+    .chrome-tb {
+      width: auto;
+    }
+    .chrome-tb-co,
+    .chrome-tb-view,
+    .chrome-tb-stamp {
+      display: none;
+    }
+    .chrome-tb-cell {
+      font-size: 9px;
+    }
+
     .tbf-grid {
       grid-template-columns: 1fr 1fr;
     }
@@ -1513,6 +1593,9 @@
     }
     .tbf-cell:nth-child(2n + 1) {
       border-left: none;
+    }
+    .tbf-rev-row {
+      grid-template-columns: 1.6em 2em 1fr;
     }
   }
   .lw {

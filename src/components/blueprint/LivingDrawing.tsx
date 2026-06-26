@@ -205,7 +205,7 @@ export function LivingDrawing() {
   }, [webgl]);
 
   return (
-    <section ref={rootRef} className="plate" id="drawing">
+    <section ref={rootRef} className="plate" id="drawing" data-sheet="01" data-rev="C" data-name="GENERAL ARRANGEMENT">
       <div className="plate-stick">
         <div className="plate-sheet">
           {webgl && (
