@@ -77,6 +77,47 @@ export const COLUMN_PATHS: DrawPath[] = [
   },
 ];
 
+// the closed body outline (reused as a fill for the shaded look + as a clip for hatching)
+export const SILHOUETTE_D =
+  "M440 130 L520 130 L520 170 L620 212 L620 430 " +
+  "L636 440 L636 472 L620 482 L620 690 L590 722 L590 750 " +
+  "L370 750 L370 722 L340 690 L340 482 L324 472 L324 440 L340 430 " +
+  "L340 212 L440 170 Z";
+
+// construction geometry — the faint setup a draughtsperson lays down BEFORE inking.
+// Drawn first (cyan, hair), then dimmed once the real linework starts.
+export const CONSTRUCTION_PATHS: { id: string; d: string }[] = [
+  { id: "bbox", d: "M324 130 L636 130 L636 750 L324 750 Z" },
+  { id: "datum-top", d: "M300 130 L660 130" },
+  { id: "datum-bot", d: "M300 750 L660 750" },
+  { id: "cross", d: "M300 446 L660 446 M480 96 L480 792" },
+  // construction circles at the fillets / clamp (drawn as polylines so they trace)
+  { id: "circ-clamp", d: arc(480, 456, 168) },
+  { id: "circ-crown", d: arc(480, 150, 52) },
+];
+
+// approximate a circle with a closed poly-bezier so stroke-dashoffset can "draw" it
+function arc(cx: number, cy: number, r: number): string {
+  const k = 0.5522847498 * r;
+  return (
+    `M${cx} ${cy - r} ` +
+    `C${cx + k} ${cy - r} ${cx + r} ${cy - k} ${cx + r} ${cy} ` +
+    `C${cx + r} ${cy + k} ${cx + k} ${cy + r} ${cx} ${cy + r} ` +
+    `C${cx - k} ${cy + r} ${cx - r} ${cy + k} ${cx - r} ${cy} ` +
+    `C${cx - r} ${cy - k} ${cx - k} ${cy - r} ${cx} ${cy - r} Z`
+  );
+}
+
+// five media beds — each a distinct hatch, clipped to the silhouette, faded in late
+export type Bed = { id: string; y0: number; y1: number; hatch: string };
+export const BEDS: Bed[] = [
+  { id: "sediment", y0: 212, y1: 330, hatch: "h-stipple" },
+  { id: "carbon", y0: 330, y1: 446, hatch: "h-vert" },
+  { id: "catalytic", y0: 446, y1: 560, hatch: "h-grid" },
+  { id: "mineral", y0: 560, y1: 660, hatch: "h-dots" },
+  { id: "uv", y0: 660, y1: 750, hatch: "h-diag" },
+];
+
 // labelled balloons keyed to the bill of materials (centre of each media bed)
 export type Balloon = { n: string; x: number; y: number };
 export const BOM_BALLOONS: Balloon[] = [
