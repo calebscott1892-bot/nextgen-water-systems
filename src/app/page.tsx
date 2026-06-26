@@ -1,17 +1,18 @@
 import { Nav } from "@/components/Nav";
-import { FilterJourney } from "@/components/journey/FilterJourney";
+import { LivingDrawing } from "@/components/blueprint/LivingDrawing";
 
 export default function Home() {
   return (
     <>
       <Nav />
       <main>
-        <FilterJourney />
         {/*
-          SIGNATURE MILESTONE: the 3D teardown journey, beats 0–4 (emerge → orbit
-          → through → cross-section). Explode/benchmark/labels + the full section
-          spine follow after sign-off, per the brief.
+          THE LIVING DRAWING — proof slice of the new direction: the NGW-01 column
+          traced onto a real draughting plate as you scroll. Next: realistic 3D
+          hero bookend (FilterJourney, kept dormant), exterior orbit + model
+          spruce, Section A–A descent, and the FLOW TEST cleansing strip → CTA.
         */}
+        <LivingDrawing />
       </main>
     </>
   );

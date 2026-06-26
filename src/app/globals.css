@@ -543,6 +543,192 @@
     box-shadow: none;
   }
 
+  /* ---- The Living Drawing (draughting plate) ---- */
+  .plate {
+    position: relative;
+    height: 320svh;
+    background: #05080c;
+  }
+  .plate-stick {
+    position: sticky;
+    top: 0;
+    height: 100svh;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+  }
+  .plate-sheet {
+    position: relative;
+    width: min(92vw, 132svh);
+    aspect-ratio: 4 / 3;
+    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.6);
+  }
+  .plate-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .lw {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .lw-heavy {
+    stroke: #0d2738;
+    stroke-width: 2.6;
+  }
+  .lw-hair {
+    stroke: #2f6e9c;
+    stroke-width: 1.2;
+  }
+  .lw-centre {
+    stroke: #86a8c3;
+    stroke-width: 1;
+  }
+  .jd-dim-t {
+    font-family: var(--font-mono), monospace;
+    font-size: 15px;
+    fill: #16456c;
+    letter-spacing: 0.02em;
+  }
+  .jd-balloon-t {
+    font-family: var(--font-mono), monospace;
+    font-size: 14px;
+    fill: #0f2c3b;
+  }
+  .jd-note {
+    position: absolute;
+    left: 4.4%;
+    top: 5.2%;
+    max-width: 42%;
+    color: #0f2c3b;
+  }
+  .jd-eyebrow {
+    font-family: var(--font-mono), monospace;
+    font-size: clamp(9px, 1vw, 12px);
+    letter-spacing: 0.22em;
+    color: #2f6e9c;
+  }
+  .jd-note p {
+    margin-top: 10px;
+    font-family: var(--font-mono), monospace;
+    font-size: clamp(11px, 1.35vw, 16px);
+    line-height: 1.5;
+    color: #1d4257;
+  }
+  .jd-titleblock {
+    position: absolute;
+    right: 2.6%;
+    bottom: 4.8%;
+    width: 30%;
+    font-family: var(--font-mono), monospace;
+    color: #0f2c3b;
+  }
+  .jd-revtable {
+    position: absolute;
+    right: 2.6%;
+    top: 34.5%;
+    width: 30%;
+    font-family: var(--font-mono), monospace;
+    color: #0f2c3b;
+  }
+  .jd-rev {
+    border: 1px solid #0f2c3b;
+    font-size: clamp(7px, 0.85vw, 10px);
+    background: rgba(245, 241, 230, 0.92);
+  }
+  .jd-rev-head,
+  .jd-rev-row {
+    display: grid;
+    grid-template-columns: 2.6em 1fr;
+    border-bottom: 1px solid rgba(15, 44, 59, 0.5);
+  }
+  .jd-rev-head {
+    background: rgba(15, 44, 59, 0.08);
+    letter-spacing: 0.12em;
+  }
+  .jd-rev-head span,
+  .jd-rev-row span {
+    padding: 3px 7px;
+    border-left: 1px solid rgba(15, 44, 59, 0.5);
+  }
+  .jd-rev-head span:first-child,
+  .jd-rev-row span:first-child {
+    border-left: none;
+  }
+  .jd-tb-grid {
+    border: 1px solid #0f2c3b;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    font-size: clamp(7px, 0.85vw, 10px);
+    background: rgba(245, 241, 230, 0.92);
+  }
+  .jd-tb-co,
+  .jd-tb-title,
+  .jd-tb-stamp {
+    grid-column: 1 / -1;
+    padding: 5px 8px;
+    border-bottom: 1px solid #0f2c3b;
+  }
+  .jd-tb-co {
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    font-size: clamp(8px, 0.95vw, 12px);
+  }
+  .jd-tb-title {
+    letter-spacing: 0.06em;
+    color: #1d4257;
+  }
+  .jd-tb-cell {
+    padding: 5px 8px;
+    border-bottom: 1px solid rgba(15, 44, 59, 0.5);
+    border-left: 1px solid rgba(15, 44, 59, 0.5);
+  }
+  .jd-tb-cell:nth-child(odd) {
+    border-left: none;
+  }
+  .jd-tb-cell i {
+    display: block;
+    font-style: normal;
+    opacity: 0.55;
+    letter-spacing: 0.14em;
+    font-size: 0.85em;
+  }
+  .jd-tb-stamp {
+    border-bottom: none;
+    color: #b4452f;
+    letter-spacing: 0.1em;
+  }
+  .jd-bomlist {
+    position: absolute;
+    right: 2.6%;
+    top: 5%;
+    width: 24%;
+    font-family: var(--font-mono), monospace;
+    font-size: clamp(7px, 0.82vw, 10px);
+    color: #0f2c3b;
+    border: 1px solid #0f2c3b;
+    background: rgba(245, 241, 230, 0.92);
+  }
+  .jd-bomlist-head {
+    padding: 4px 8px;
+    letter-spacing: 0.14em;
+    border-bottom: 1px solid #0f2c3b;
+    background: rgba(15, 44, 59, 0.08);
+  }
+  .jd-bomlist-row {
+    display: grid;
+    grid-template-columns: 1.8em 1fr;
+    border-bottom: 1px solid rgba(15, 44, 59, 0.35);
+  }
+  .jd-bomlist-row span {
+    padding: 3px 7px;
+    border-left: 1px solid rgba(15, 44, 59, 0.35);
+  }
+  .jd-bomlist-row span:first-child {
+    border-left: none;
+  }
+
   .reveal {
     opacity: 0;
     transform: translateY(28px);
