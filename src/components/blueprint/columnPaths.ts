@@ -108,14 +108,16 @@ function arc(cx: number, cy: number, r: number): string {
   );
 }
 
-// five media beds — each a distinct hatch, clipped to the silhouette, faded in late
+// five media beds — each a distinct hatch, clipped to the silhouette, faded in
+// late. ONE filtration story everywhere: sediment → carbon → RO → post-carbon →
+// re-mineralise (matches the 3D stages and Plate 04).
 export type Bed = { id: string; y0: number; y1: number; hatch: string };
 export const BEDS: Bed[] = [
   { id: "sediment", y0: 212, y1: 330, hatch: "h-stipple" },
   { id: "carbon", y0: 330, y1: 446, hatch: "h-vert" },
-  { id: "catalytic", y0: 446, y1: 560, hatch: "h-grid" },
-  { id: "mineral", y0: 560, y1: 660, hatch: "h-dots" },
-  { id: "uv", y0: 660, y1: 750, hatch: "h-diag" },
+  { id: "ro", y0: 446, y1: 560, hatch: "h-grid" },
+  { id: "post-carbon", y0: 560, y1: 660, hatch: "h-dots" },
+  { id: "remineralise", y0: 660, y1: 750, hatch: "h-diag" },
 ];
 
 // labelled balloons keyed to the bill of materials (centre of each media bed)
@@ -129,15 +131,15 @@ export const BOM_BALLOONS: Balloon[] = [
 ];
 
 export const BOM_ROWS = [
-  ["1", "HOUSING", "316L STAINLESS*"],
-  ["2", "SEDIMENT", "20µm PRE-FILTER*"],
-  ["3", "CARBON BLOCK", "CHLORINE · TASTE*"],
-  ["4", "MINERAL RE-DOSE", "BALANCED pH*"],
-  ["5", "UV / POLISH", "FINAL POLISH*"],
+  ["1", "SEDIMENT", "20µm PRE-FILTER*"],
+  ["2", "CARBON BLOCK", "CHLORINE · TASTE*"],
+  ["3", "RO MEMBRANE", "LEAD · PFAS*"],
+  ["4", "POST-CARBON", "FINAL POLISH*"],
+  ["5", "RE-MINERALISE", "BALANCED pH*"],
 ];
 
 export const REVISIONS = [
-  { rev: "A", desc: "GENERAL ARRANGEMENT", at: 0.18 },
-  { rev: "B", desc: "BILL OF MATERIALS", at: 0.5 },
+  { rev: "A", desc: "GENERAL ARRANGEMENT", at: 0.3 },
+  { rev: "B", desc: "BILL OF MATERIALS", at: 0.56 },
   { rev: "C", desc: "SECTION A — A ADDED", at: 0.82 },
 ];

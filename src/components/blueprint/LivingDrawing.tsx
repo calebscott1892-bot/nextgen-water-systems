@@ -116,11 +116,15 @@ export function LivingDrawing() {
       // from driving tl.progress with a there-and-back scalar (see onUpdate).
       const tl = gsap.timeline({ paused: true, defaults: { ease: "none" } });
 
+      // 0 — the cyan scan-line reads the unit off into the drawing
+      const scan = q<SVGRectElement>(".jd-scan");
+      if (scan) tl.fromTo(scan, { attr: { y: 96 }, opacity: 0.85 }, { attr: { y: 750 }, opacity: 0, duration: 0.08, ease: "none" }, 0.02);
       // 1 — construction "measuring" lays down over the chrome on the void
       con.forEach((p, i) => tl.to(p, { strokeDashoffset: 0, duration: 0.05, ease: "power1.out" }, 0.04 + i * 0.018));
-      // 2 — WHITE ink traces over the live chrome still, draughtsperson order
+      // 2 — WHITE ink traces over the live chrome, STRICTLY sequential so the
+      // pen-tip rides one stroke at a time (reads hand-drawn, never jumps)
       const span = 0.34 / ink.length;
-      ink.forEach((p, i) => tl.to(p, { strokeDashoffset: 0, duration: span * 1.7, ease: "power2.inOut" }, 0.12 + i * span));
+      ink.forEach((p, i) => tl.to(p, { strokeDashoffset: 0, duration: span * 0.95, ease: "power2.inOut" }, 0.12 + i * span));
       // 3 — the world turns: paper rises, chrome dissolves, white ink settles to navy
       tl.to(paper, { opacity: 1, duration: 0.12, ease: "power1.inOut" }, 0.4);
       tl.to(furniture, { opacity: 1, duration: 0.12, ease: "power1.inOut" }, 0.42);
@@ -133,9 +137,8 @@ export function LivingDrawing() {
       tl.to(dimG, { opacity: 1, duration: 0.02 }, 0.66);
       dim.forEach((p, i) => tl.to(p, { strokeDashoffset: 0, duration: 0.06, ease: "power2.out" }, 0.66 + i * 0.03));
       tl.to(bom, { opacity: 1, duration: 0.1 }, 0.7);
-      // 6 — revision rows accrue (the progress spine)
-      const revAt = [0.3, 0.56, 0.82];
-      revRows.forEach((r, i) => tl.to(r, { opacity: 1, duration: 0.04 }, revAt[i] ?? 0.5));
+      // 6 — revision rows accrue (the progress spine, driven from the data)
+      revRows.forEach((r, i) => tl.to(r, { opacity: 1, duration: 0.04 }, REVISIONS[i]?.at ?? 0.5));
 
       ScrollTrigger.create({
         trigger: root,
@@ -147,10 +150,12 @@ export function LivingDrawing() {
           const p = self.progress;
           // The 3D journey owns the whole scroll (orbit → dock → rotate → through
           // → split → settle). The blueprint round trip is ONE early act: a
-          // windowed there-and-back over p∈[0.04, 0.32] (chrome → trace → plate →
-          // revert to chrome), after which the camera journey carries on.
-          const bp = gsap.utils.clamp(0, 1, gsap.utils.mapRange(0.04, 0.32, 0, 1, p));
-          const bpU = 1 - Math.abs(1 - 2 * bp);
+          // windowed there-and-back over p∈[0.10, 0.33] — starting only once the
+          // camera has DOCKED, so the ink never traces over a moving model.
+          const bp = gsap.utils.clamp(0, 1, gsap.utils.mapRange(0.1, 0.33, 0, 1, p));
+          // trapezoid, not triangle: draw in over the first 38%, HOLD the finished
+          // plate through the middle, un-draw over the last 38%
+          const bpU = gsap.utils.clamp(0, 1, Math.min(bp / 0.38, (1 - bp) / 0.38));
           tl.progress(bpU);
 
           // 3D reads the raw journey scalar; the canvas hides only while the

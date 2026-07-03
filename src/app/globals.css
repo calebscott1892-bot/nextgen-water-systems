@@ -631,16 +631,21 @@
     display: flex;
     justify-content: center;
     padding: clamp(40px, 7vw, 96px) clamp(14px, 4vw, 40px);
-    scroll-margin-top: 76px;
+    scroll-margin-top: 116px;
   }
   .sheet-frame {
     position: relative;
     width: min(94vw, 1180px);
     padding: clamp(26px, 4.2vw, 70px);
     overflow: hidden;
-    background: radial-gradient(120% 120% at 40% 20%, #f6f9fb 0%, # efe6d2 62%, #e3dcc8 100%);
-    background: radial-gradient(120% 120% at 40% 20%, #f6f9fb 0%, #efe6d2 62%, #e3dcc8 100%);
-    border: 1.6px solid #0f2c3b;
+    /* same vellum + 5mm/25mm graph grid as the hero plate — one bound drawing set */
+    background-image: repeating-linear-gradient(0deg, rgba(15, 44, 59, 0.055) 0 1px, transparent 1px 100px),
+      repeating-linear-gradient(90deg, rgba(15, 44, 59, 0.055) 0 1px, transparent 1px 100px),
+      repeating-linear-gradient(0deg, rgba(15, 44, 59, 0.028) 0 1px, transparent 1px 20px),
+      repeating-linear-gradient(90deg, rgba(15, 44, 59, 0.028) 0 1px, transparent 1px 20px),
+      radial-gradient(120% 120% at 40% 20%, #f6f9fb 0%, #efe6d2 62%, #e3dcc8 100%);
+    /* hero-plate border order: hairline OUTER, heavy INNER */
+    border: 1px solid rgba(15, 44, 59, 0.55);
     box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55);
     color: #34495a;
   }
@@ -648,7 +653,7 @@
     content: "";
     position: absolute;
     inset: 7px;
-    border: 1px solid rgba(15, 44, 59, 0.5);
+    border: 1.6px solid #0f2c3b;
     pointer-events: none;
   }
   .sheet-head {
@@ -657,7 +662,7 @@
     align-items: center;
     gap: 14px;
     font-family: var(--font-mono), monospace;
-    font-size: clamp(8px, 0.9vw, 11px);
+    font-size: clamp(9.5px, 0.9vw, 11px);
     letter-spacing: 0.16em;
     color: #1f5c8a;
     margin-bottom: clamp(20px, 3vw, 42px);
@@ -768,6 +773,20 @@
   }
   .sheet.is-animated.is-drawn .schedule tbody tr:nth-child(6) {
     transition-delay: 0.4s;
+  }
+  /* approvals stagger like every other sequence */
+  .sheet.is-animated.is-drawn .approval:nth-child(2) {
+    transition-delay: 0.08s;
+  }
+  .sheet.is-animated.is-drawn .approval:nth-child(3) {
+    transition-delay: 0.16s;
+  }
+  .sheet.is-animated.is-drawn .approval:nth-child(4) {
+    transition-delay: 0.24s;
+  }
+  /* Detail A leaders wait for the circle to finish drawing */
+  .sheet.is-animated .lw-lead {
+    transition-delay: 0.7s;
   }
   .sheet-split {
     display: grid;
@@ -975,8 +994,8 @@
   .flow-n {
     grid-area: n;
     align-self: center;
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
     border: 1.3px solid #0f2c3b;
     display: grid;
@@ -1048,7 +1067,6 @@
   }
   .dim-bar {
     height: 7px;
-    max-width: 120px;
     background: repeating-linear-gradient(90deg, #2f6e9c 0 6px, transparent 6px 9px);
     border-right: 1.4px solid #2f6e9c;
   }
@@ -1170,7 +1188,7 @@
     font-family: var(--font-mono), monospace;
     font-size: 26px;
     color: #1f5c8a;
-    background: radial-gradient(circle, #efe6d2 60%, transparent 61%);
+    background: radial-gradient(circle, #efe6d2 45%, rgba(239, 230, 210, 0) 70%);
     width: 32px;
   }
   .process-t {
@@ -1271,10 +1289,14 @@
     opacity: 1;
   }
   .chrome-rev-row.pending {
-    opacity: 0.4;
+    opacity: 0.55;
   }
   .chrome-rev-row.reached {
     color: #aeb9c2;
+  }
+  .chrome-rev-row:hover {
+    border-color: rgba(41, 194, 238, 0.55);
+    color: #e8f4fb;
   }
   .chrome-rev-row.on {
     border-color: #29c2ee;
@@ -1332,7 +1354,7 @@
     padding: 5px 9px;
     font-size: 9px;
     letter-spacing: 0.1em;
-    color: #b4452f;
+    color: #e0846a;
   }
   .chrome-tb-stamp.approved {
     color: #29c2ee;
@@ -1348,11 +1370,32 @@
     position: relative;
     max-width: 1180px;
     margin: 0 auto;
-    background: radial-gradient(120% 120% at 40% 0%, #f6f9fb, #e6ddc9);
-    border: 1.6px solid #0f2c3b;
+    background-image: repeating-linear-gradient(0deg, rgba(15, 44, 59, 0.05) 0 1px, transparent 1px 100px),
+      repeating-linear-gradient(90deg, rgba(15, 44, 59, 0.05) 0 1px, transparent 1px 100px),
+      repeating-linear-gradient(0deg, rgba(15, 44, 59, 0.025) 0 1px, transparent 1px 20px),
+      repeating-linear-gradient(90deg, rgba(15, 44, 59, 0.025) 0 1px, transparent 1px 20px),
+      radial-gradient(120% 120% at 40% 0%, #f6f9fb, #e6ddc9);
+    border: 1px solid rgba(15, 44, 59, 0.55);
     padding: clamp(20px, 3vw, 40px);
     color: #34495a;
     font-family: var(--font-mono), monospace;
+  }
+  .tbf-frame::before {
+    content: "";
+    position: absolute;
+    inset: 7px;
+    border: 1.6px solid #0f2c3b;
+    pointer-events: none;
+  }
+  .tbf-cell a {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(31, 92, 138, 0.4);
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .tbf-cell a:hover {
+    color: #1f5c8a;
+    border-color: #1f5c8a;
   }
   .tbf-grid {
     display: grid;
@@ -1509,7 +1552,7 @@
       padding: clamp(18px, 6vw, 30px);
     }
     .sheet-head {
-      font-size: 8.5px;
+      font-size: 9.5px;
       gap: 8px;
       flex-wrap: wrap;
     }

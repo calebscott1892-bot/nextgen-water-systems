@@ -39,11 +39,12 @@ function TrustPlate() {
 
 /* ──────────────────────── PLATE 03 — PROBLEM ──────────────────────── */
 function ProblemPlate() {
+  // leader angles aim AT each callout's CSS position (SVG y-down degrees)
   const items = [
-    { n: "01", a: 90, label: "CHLORINE", note: "taste, odour, by-products" },
-    { n: "02", a: 18, label: "LEAD (Pb)", note: "from older fittings*" },
-    { n: "03", a: 150, label: "PFAS", note: "‘forever chemicals’*" },
-    { n: "04", a: 235, label: "SEDIMENT", note: "grit · rust · scale" },
+    { n: "01", a: 328, label: "CHLORINE", note: "taste, odour, by-products" },
+    { n: "02", a: 26, label: "LEAD (Pb)", note: "from older fittings*" },
+    { n: "03", a: 112, label: "PFAS", note: "‘forever chemicals’*" },
+    { n: "04", a: 205, label: "SEDIMENT", note: "grit · rust · scale" },
   ];
   return (
     <Plate id="plate-problem" sheet="03" rev="E" name="DETAIL A — CONTAMINANTS" plateNo="PLATE 03" kicker="REV E · DETAIL A — SCALE 4:1 · UNFILTERED SUPPLY">
@@ -68,8 +69,9 @@ function ProblemPlate() {
             <circle className="detail-fill" cx="210" cy="210" r="150" />
             {items.map((it) => {
               const rad = (it.a * Math.PI) / 180;
-              const x = 210 + Math.cos(rad) * 150;
-              const y = 210 + Math.sin(rad) * 150;
+              // extend past the r=150 circle so the leader visibly reaches its callout
+              const x = 210 + Math.cos(rad) * 172;
+              const y = 210 + Math.sin(rad) * 172;
               return <line key={it.n} className="lw-draw lw-lead" x1="210" y1="210" x2={x} y2={y} pathLength={1} />;
             })}
           </svg>
@@ -164,7 +166,10 @@ function FlowTestPlate() {
           <line className="lw-hair2" x1="636" y1="130" x2="700" y2="130" />
           <line className="lw-hair2" x1="636" y1="750" x2="700" y2="750" />
           <line className="lw-hair2" x1="688" y1="130" x2="688" y2="750" />
-          <text x="694" y="445" className="flow-dim">540 mm*</text>
+          {/* vertical dims read along the line (draughting convention) */}
+          <text x="700" y="440" className="flow-dim" textAnchor="middle" transform="rotate(-90 700 440)">
+            540 mm*
+          </text>
         </svg>
         <ol className="flow-list">
           {STAGES.map((s) => (
@@ -221,7 +226,8 @@ function BenchmarkPlate() {
                 <td>{r.c}</td>
                 <td>
                   <span className="dim-row">
-                    <span className="dim-bar" style={{ width: `${r.v}%` }} />
+                    {/* fixed 1.4px-per-% scale so the bars actually encode their values */}
+                    <span className="dim-bar" style={{ width: `${r.v * 1.4}px` }} />
                     <span className="dim-val" data-count={r.v} data-prefix={r.c === "SEDIMENT" ? "> " : "up to "} data-suffix="%*">
                       {r.c === "SEDIMENT" ? "> " : "up to "}
                       {r.v}%*
@@ -410,11 +416,11 @@ function TitleBlockFooter() {
           </div>
           <div className="tbf-cell">
             <i>PHONE</i>
-            {CONTACT.phone}*
+            <a href={`tel:${CONTACT.phone.replace(/\s/g, "")}`}>{CONTACT.phone}*</a>
           </div>
           <div className="tbf-cell">
             <i>EMAIL</i>
-            {CONTACT.email}
+            <a href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a>
           </div>
         </div>
 
