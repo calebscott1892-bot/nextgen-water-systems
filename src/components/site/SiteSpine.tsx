@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { Plate, Callout } from "./Plate";
 import { Button } from "@/components/ui/Button";
 import { CONTACT, SITE_REVISIONS } from "@/content/plates";
+import C4FooterCredit from "@/components/c4-footer-credit/C4FooterCredit";
 import { SILHOUETTE_D, BEDS } from "@/components/blueprint/columnPaths";
 import { createCleanseStrip } from "@/components/fluid/cleanseStrip";
 import { useReducedMotion } from "@/lib/useReducedMotion";
@@ -449,7 +450,20 @@ function TitleBlockFooter() {
         </div>
 
         <div className="tbf-stamp">CONCEPT · NOT FOR CONSTRUCTION</div>
-        <div className="tbf-rule">© 2026 Next Gen Water Systems · ABN 00 000 000 000* · designed in Australia</div>
+        <div className="tbf-rule">
+          <span>© 2026 Next Gen Water Systems · ABN 00 000 000 000* · designed in Australia</span>
+          <span className="tbf-credit">
+            <span className="tbf-credit-label">Designed by</span>
+            <C4FooterCredit
+              href="https://c4studios.com.au"
+              label="Designed by C4 Studios"
+              size={34}
+              showText={false}
+              openInNewTab
+              colorScheme="light"
+            />
+          </span>
+        </div>
       </div>
     </footer>
   );

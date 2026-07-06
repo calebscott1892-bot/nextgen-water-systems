@@ -1482,12 +1482,28 @@
     transform: rotate(-3deg);
   }
   .tbf-rule {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px 20px;
     margin-top: 18px;
     padding-top: 12px;
     border-top: 1px solid rgba(15, 44, 59, 0.3);
     font-size: 10px;
     letter-spacing: 0.06em;
     color: #6a8194;
+  }
+  .tbf-credit {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .tbf-credit-label {
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    color: #6a8194;
+    opacity: 0.75;
   }
 
   /* ── reveal nuances ── */
