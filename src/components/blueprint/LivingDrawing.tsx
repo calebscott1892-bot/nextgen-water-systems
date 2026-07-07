@@ -53,7 +53,10 @@ export function LivingDrawing() {
   const canvasWrapRef = useRef<HTMLDivElement>(null);
   const u3d = useRef(0); // the there-and-back scalar, shared with the 3D stage
   const [webgl, setWebgl] = useState(false);
-  const [active, setActive] = useState(false);
+  // start rendering immediately — the journey is the first thing on screen, so
+  // don't wait on the IntersectionObserver (which also fires unreliably under
+  // headless virtual-time). The observer below still PAUSES it once off-screen.
+  const [active, setActive] = useState(true);
 
   useEffect(() => {
     setWebgl(!reduced && hasWebGL());

@@ -67,6 +67,14 @@ function Rig({ progress }: { progress: MutableRefObject<number> }) {
     tgt.current.set(lerp(a.tgt[0], b.tgt[0], e), lerp(a.tgt[1], b.tgt[1], e), lerp(a.tgt[2], b.tgt[2], e));
     camera.up.set(0, 1, 0);
     camera.lookAt(tgt.current);
+    // subtle dolly-zoom "breath" — the lens pushes in through the on-axis dive
+    const cam = camera as THREE.PerspectiveCamera;
+    const dive = ss(p, 0.5, 0.62) * (1 - ss(p, 0.66, 0.74));
+    const fov = 38 - dive * 7;
+    if (Math.abs(cam.fov - fov) > 0.01) {
+      cam.fov = fov;
+      cam.updateProjectionMatrix();
+    }
   });
   return null;
 }
@@ -79,10 +87,12 @@ const STAGES = [
   { y: 1.6, color: "#29c2ee", n: "05", title: "Re-mineralise", sub: "balanced pH*" },
 ];
 
-/* material recipes — one story: brushed steel body, dark machined accents */
-const STEEL = { color: "#aeb9c2", metalness: 1, roughness: 0.22, clearcoat: 0.9, clearcoatRoughness: 0.12, envMapIntensity: 1.15 } as const;
-const CAPS = { color: "#7d8892", metalness: 1, roughness: 0.32, clearcoat: 0.5, envMapIntensity: 1.0 } as const;
-const MACHINED = { color: "#2e363e", metalness: 0.9, roughness: 0.5 } as const;
+/* material recipes — one story: brushed steel body, dark machined accents.
+   Tuned for the bespoke Lightformer studio: crisper reflections, full
+   clearcoat, a whisper of vertical anisotropy to sell the brushed grain. */
+const STEEL = { color: "#b1bcc6", metalness: 1, roughness: 0.18, clearcoat: 1, clearcoatRoughness: 0.09, envMapIntensity: 1.25 } as const;
+const CAPS = { color: "#828d97", metalness: 1, roughness: 0.27, clearcoat: 0.65, clearcoatRoughness: 0.2, envMapIntensity: 1.3 } as const;
+const MACHINED = { color: "#2b333b", metalness: 0.95, roughness: 0.42, envMapIntensity: 1.05 } as const;
 
 function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
   const group = useRef<THREE.Group>(null);
@@ -372,21 +382,32 @@ export default function ChromeStage({ progress, active }: Props) {
       dpr={[1, 2]}
       camera={{ position: [0, 0, 8.8], fov: 38 }}
       gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
+      onCreated={({ gl }) => {
+        gl.toneMapping = THREE.ACESFilmicToneMapping;
+        gl.toneMappingExposure = 0.98;
+      }}
       style={{ position: "absolute", inset: 0 }}
     >
-      <Environment preset="warehouse" environmentIntensity={0.85} />
-      <ambientLight intensity={0.22} />
-      <directionalLight position={[4, 6, 5]} intensity={1.0} color="#eaf6ff" />
-      <directionalLight position={[-5, 1, -3]} intensity={0.35} color="#29c2ee" />
+      {/* Studio HDRI softbox reflections — clean, product-photography chrome, and
+          (unlike an in-scene Lightformer bake) it renders reliably on real GPUs.
+          ACES tone-mapping + refined metal + directional cyan brand rims do the
+          rest. The SVG plate is the no-WebGL / reduced-motion fallback. */}
+      <Environment preset="studio" environmentIntensity={0.82} />
+
+      <ambientLight intensity={0.12} />
+      {/* warm key for form; two cyan rims rake the edges as brand accent */}
+      <directionalLight position={[4, 6, 5]} intensity={0.85} color="#eaf6ff" />
+      <directionalLight position={[-5.5, 1.5, -3]} intensity={0.6} color="#29c2ee" />
+      <directionalLight position={[-1.5, -1, 4.5]} intensity={0.22} color="#7fd8f5" />
 
       <ChromeColumn progress={progress} />
       <Rig progress={progress} />
 
-      <ContactShadows position={[0, -2.38, 0]} opacity={0.5} scale={13} blur={2.8} far={5} color="#000000" />
+      <ContactShadows position={[0, -2.38, 0]} opacity={0.55} scale={13} blur={3} far={5} color="#000000" />
 
       <EffectComposer>
-        <Bloom intensity={0.32} luminanceThreshold={0.85} luminanceSmoothing={0.3} mipmapBlur />
-        <Vignette eskil={false} offset={0.3} darkness={0.45} />
+        <Bloom intensity={0.42} luminanceThreshold={0.82} luminanceSmoothing={0.28} mipmapBlur />
+        <Vignette eskil={false} offset={0.26} darkness={0.55} />
       </EffectComposer>
     </Canvas>
   );

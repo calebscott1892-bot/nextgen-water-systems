@@ -555,7 +555,8 @@
   .plate {
     position: relative;
     height: 600svh;
-    background: #05080c;
+    /* subtle studio pool-of-light so the chrome sits in depth, not flat black */
+    background: radial-gradient(50% 42% at 50% 40%, #0a141c 0%, #06090f 58%, #05080c 100%);
   }
   .plate-stick {
     position: sticky;
