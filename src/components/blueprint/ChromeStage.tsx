@@ -90,7 +90,7 @@ const STAGES = [
 /* material recipes — one story: brushed steel body, dark machined accents.
    Tuned for the bespoke Lightformer studio: crisper reflections, full
    clearcoat, a whisper of vertical anisotropy to sell the brushed grain. */
-const STEEL = { color: "#b1bcc6", metalness: 1, roughness: 0.18, clearcoat: 1, clearcoatRoughness: 0.09, envMapIntensity: 1.25 } as const;
+const STEEL = { color: "#b1bcc6", metalness: 1, roughness: 0.26, clearcoat: 1, clearcoatRoughness: 0.09, envMapIntensity: 1.3 } as const;
 const CAPS = { color: "#828d97", metalness: 1, roughness: 0.27, clearcoat: 0.65, clearcoatRoughness: 0.2, envMapIntensity: 1.3 } as const;
 const MACHINED = { color: "#2b333b", metalness: 0.95, roughness: 0.42, envMapIntensity: 1.05 } as const;
 
@@ -131,6 +131,39 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
       new THREE.Vector2(0.0, 2.54),
     ];
     return new THREE.LatheGeometry(pts, 96);
+  }, []);
+
+  // procedural micro-roughness — the biggest realism lever: real steel is never a
+  // perfect mirror. Fine grayscale noise + faint vertical brush streaks break the
+  // reflection into physical brushed metal (multiplies the roughness scalar).
+  const roughMap = useMemo(() => {
+    if (typeof document === "undefined") return null;
+    const s = 512;
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = s;
+    const g = cv.getContext("2d");
+    if (!g) return null;
+    const img = g.createImageData(s, s);
+    for (let i = 0; i < s * s; i++) {
+      const v = 168 + Math.floor(Math.random() * 66); // ~0.66–0.92
+      img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = v;
+      img.data[i * 4 + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    g.globalAlpha = 0.045;
+    g.strokeStyle = "#d2d2d2";
+    for (let x = 0; x < s; x++)
+      if (Math.random() < 0.22) {
+        g.beginPath();
+        g.moveTo(x + 0.5, 0);
+        g.lineTo(x + 0.5, s);
+        g.stroke();
+      }
+    const tex = new THREE.CanvasTexture(cv);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(2, 6);
+    tex.anisotropy = 4;
+    return tex;
   }, []);
 
   useFrame((state) => {
@@ -199,7 +232,7 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
     <group ref={group}>
       {/* housing shell */}
       <mesh geometry={housingGeo}>
-        <meshPhysicalMaterial ref={housingMat} {...STEEL} transparent opacity={1} />
+        <meshPhysicalMaterial ref={housingMat} {...STEEL} roughnessMap={roughMap ?? undefined} transparent opacity={1} />
       </mesh>
 
       {/* glass sleeve (revealed as the shell ghosts) */}
