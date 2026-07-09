@@ -3,6 +3,7 @@ import "./globals.css";
 import { satoshi, hanken, geistMono } from "./fonts";
 import { SmoothScroll } from "@/lib/providers/SmoothScroll";
 import { Cursor } from "@/components/Cursor";
+import { asset } from "@/lib/asset";
 
 const DESCRIPTION =
   "Premium whole-home water refining, engineered in Australia. Measurable contaminant reduction, award-winning design. Book a free in-home water test. (Concept demo — C4 Studios.)";
@@ -32,6 +33,17 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en-AU" className={`${satoshi.variable} ${hanken.variable} ${geistMono.variable}`}>
+      <head>
+        {/* start the hero chrome's HDR env fetch at HTML parse — otherwise it
+            waits for hydration → dynamic chunk → <Environment> mount. crossOrigin
+            must match THREE.FileLoader's cors fetch or the preload double-loads. */}
+        <link
+          rel="preload"
+          href={asset("/hdri/studio_small_03_1k.hdr")}
+          as="fetch"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body>
         <SmoothScroll>
           <Cursor />

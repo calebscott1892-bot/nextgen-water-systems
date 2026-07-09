@@ -46,7 +46,7 @@ const STROKE: Record<string, [string, number]> = {
   hair: ["#2f6e9c", 1.3],
 };
 
-// DEV/CAPTURE aid: ?jp=0.62 freezes the 3D journey scalar at that value so any
+// DEV/CAPTURE aid: ?ngjp=0.62 freezes the 3D journey scalar at that value so any
 // beat can be framed and captured in isolation. Read once on mount; null in
 // normal use, so the scroll owns the scalar.
 let DBG_JP: number | null = null;
@@ -68,7 +68,8 @@ export function LivingDrawing() {
   }, [reduced]);
 
   useEffect(() => {
-    const raw = new URLSearchParams(window.location.search).get("jp");
+    // namespaced key: a real-world "?jp=…" query param must not freeze the site
+    const raw = new URLSearchParams(window.location.search).get("ngjp");
     const v = raw === null ? NaN : parseFloat(raw);
     if (!Number.isNaN(v)) {
       DBG_JP = Math.min(1, Math.max(0, v));

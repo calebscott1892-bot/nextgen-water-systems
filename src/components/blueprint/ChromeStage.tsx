@@ -29,11 +29,12 @@ type Props = { progress: MutableRefObject<number>; active: boolean };
 const KIT_BODY = true;
 const KIT_CAPS = false;
 
-// DEV forensic (?hide=a,b,c): knock out scene elements to bisect a rogue frame.
-// Inert in normal use.
+// DEV forensic (?nghide=a,b,c): knock out scene elements to bisect a rogue
+// frame. Namespaced key so real-world query params can't collide; inert
+// in normal use.
 const HIDE: string[] =
   typeof window !== "undefined"
-    ? (new URLSearchParams(window.location.search).get("hide") || "").split(",").filter(Boolean)
+    ? (new URLSearchParams(window.location.search).get("nghide") || "").split(",").filter(Boolean)
     : [];
 const hidden = (k: string) => HIDE.includes(k);
 
@@ -62,7 +63,7 @@ function seg(p: number): [Key, Key] {
   return [CAM[CAM.length - 2], CAM[CAM.length - 1]];
 }
 
-/** DEV forensic (?dbgray): raycast from screen centre and log what's actually
+/** DEV forensic (?ngdbgray): raycast from screen centre and log what's actually
  *  in front of the camera — for diagnosing "mystery surface" frames. */
 function DebugRay() {
   const { camera, scene } = useThree();
@@ -166,11 +167,15 @@ const STAGES = [
 ];
 
 /* material recipes — one story: brushed steel body, dark machined accents.
-   Tuned for the bespoke Lightformer studio: crisper reflections, full
-   clearcoat, a whisper of vertical anisotropy to sell the brushed grain. */
-const STEEL = { color: "#b1bcc6", metalness: 1, roughness: 0.26, clearcoat: 1, clearcoatRoughness: 0.09, envMapIntensity: 1.3 } as const;
-const CAPS = { color: "#828d97", metalness: 1, roughness: 0.27, clearcoat: 0.65, clearcoatRoughness: 0.2, envMapIntensity: 1.3 } as const;
-const MACHINED = { color: "#2b333b", metalness: 0.95, roughness: 0.42, envMapIntensity: 1.05 } as const;
+   NOTE (review-confirmed): per-material envMapIntensity is a no-op under
+   scene.environment (three r163+) — env strength comes solely from
+   scene.environmentIntensity (<Environment> prop, scrubbed in JourneyLights). */
+const STEEL = { color: "#b1bcc6", metalness: 1, roughness: 0.26, clearcoat: 1, clearcoatRoughness: 0.09 } as const;
+const CAPS = { color: "#828d97", metalness: 1, roughness: 0.27, clearcoat: 0.65, clearcoatRoughness: 0.2 } as const;
+const MACHINED = { color: "#2b333b", metalness: 0.95, roughness: 0.42 } as const;
+
+// parsed once — Color.set(cssString) per frame costs regex + sRGB pow per channel
+const STAGE_COLORS = STAGES.map((s) => new THREE.Color(s.color));
 
 function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
   const group = useRef<THREE.Group>(null);
@@ -311,14 +316,17 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
       g.rotation.x = (onSide - reform * onSide) * (Math.PI / 2);
     }
 
-    // hold solid chrome until the camera is committed to the inlet
+    // hold solid chrome until the camera is committed to the inlet.
+    // NOTE (review-confirmed): materials stay statically `transparent` — toggling
+    // .transparent at runtime without needsUpdate bakes a stale OPAQUE program
+    // (three r169 ignores the flag after first compile). And per-material
+    // envMapIntensity is IGNORED under scene.environment — the operative env
+    // control during the dive is scene.environmentIntensity in JourneyLights.
     const fade = ss(p, 0.55, 0.63) * (1 - ss(p, 0.88, 0.98));
     if (housingMat.current) {
       const m = housingMat.current;
       m.opacity = lerp(1, 0.06, fade);
-      m.transparent = m.opacity < 0.995;
       m.depthWrite = m.opacity > 0.5;
-      m.envMapIntensity = lerp(STEEL.envMapIntensity, 0, fade);
       m.clearcoat = lerp(STEEL.clearcoat, 0, fade);
       m.metalness = lerp(1, 0.15, fade);
     }
@@ -334,15 +342,7 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
     }
     kitMats.current.forEach((m) => {
       m.opacity = lerp(1, 0.05, fade);
-      m.transparent = m.opacity < 0.995;
       m.depthWrite = m.opacity > 0.5;
-      // the ghosted kit must stop catching the softbox too — the clamp band's
-      // env-lit inner face otherwise glows around the camera during the dive
-      const mm = m as unknown as THREE.MeshStandardMaterial & { userData: { baseEnv?: number } };
-      if (mm.envMapIntensity !== undefined) {
-        mm.userData.baseEnv ??= mm.envMapIntensity;
-        mm.envMapIntensity = lerp(mm.userData.baseEnv, 0.05, fade);
-      }
     });
 
     // the caps ghost ONLY through the dive window — the camera flies toward the
@@ -352,19 +352,16 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
       if (m) {
         m.opacity = lerp(1, 0.05, through);
         m.depthWrite = m.opacity > 0.5;
-        m.envMapIntensity = lerp(CAPS.envMapIntensity, 0.08, through);
       }
     });
 
-    // fly-through: stages go translucent AND drop their studio-env reflection —
-    // otherwise the bright softbox washes the near puck into a pale disc. Dark,
-    // cyan-lit chambers read as a passage instead.
+    // fly-through: stages go translucent and darken — with the env + studio
+    // lights killed globally (JourneyLights), they read as dark passing chambers
     stageMatRefs.current.forEach((m, i) => {
       if (m) {
         m.opacity = lerp(1, 0.3, through);
         m.depthWrite = m.opacity > 0.5;
-        m.envMapIntensity = lerp(1, 0.06, through);
-        m.color.set(STAGES[i].color).multiplyScalar(1 - through * 0.7);
+        m.color.copy(STAGE_COLORS[i]).multiplyScalar(1 - through * 0.7);
       }
     });
 
@@ -601,7 +598,7 @@ export default function ChromeStage({ progress, active }: Props) {
 
       <ChromeColumn progress={progress} />
       <Rig progress={progress} />
-      {typeof window !== "undefined" && window.location.search.includes("dbgray") && <DebugRay />}
+      {typeof window !== "undefined" && new URLSearchParams(window.location.search).has("ngdbgray") && <DebugRay />}
 
       {!hidden("shadows") && (
         <ContactShadows position={[0, -2.38, 0]} opacity={0.55} scale={13} blur={3} far={5} color="#000000" />
