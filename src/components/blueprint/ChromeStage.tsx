@@ -98,7 +98,7 @@ function DebugRay() {
 }
 
 /** Studio lights that DIM during the interior dive — directionals have no
- *  shadows, so without this they flood the vessel interior and five stacked
+ *  shadows, so without this they flood the vessel interior and the stacked
  *  translucent stages wash out to milk. Inside a sealed steel vessel it should
  *  be dark: the cyan bore-glow becomes the only meaningful source. */
 function JourneyLights({ progress }: { progress: MutableRefObject<number> }) {
@@ -158,12 +158,13 @@ function Rig({ progress }: { progress: MutableRefObject<number> }) {
   return null;
 }
 
+/* The REAL machine (Clear2O FHWR-3SI-20, per the client's spec sheet):
+   3 stages, no RO. Stage order locked to the sheet — 1 graded sediment,
+   2 KDF 55/85 + coconut carbon (the redox bed), 3 limescale-reduction carbon. */
 const STAGES = [
-  { y: -1.6, color: "#aab4bc", n: "01", title: "Sediment", sub: "20µm pre-filter*" },
-  { y: -0.8, color: "#3c444c", n: "02", title: "Carbon block", sub: "chlorine · taste*" },
-  { y: 0.0, color: "#2b6a92", n: "03", title: "RO membrane", sub: "lead · PFAS*" },
-  { y: 0.8, color: "#4f93b8", n: "04", title: "Post-carbon", sub: "final polish*" },
-  { y: 1.6, color: "#29c2ee", n: "05", title: "Re-mineralise", sub: "balanced pH*" },
+  { y: -1.2, color: "#cdd5da", n: "01", title: "Sediment", sub: "10/5/1µm 3-layer*" },
+  { y: 0.0, color: "#a97142", n: "02", title: "KDF 55/85 + carbon", sub: "heavy metals · chlorine*" },
+  { y: 1.2, color: "#2e3a42", n: "03", title: "Limescale carbon", sub: "scale · taste · 1µm*" },
 ];
 
 /* material recipes — one story: brushed steel body, dark machined accents.
@@ -366,9 +367,9 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
     });
 
     // split the stack apart along the column axis; caps travel FURTHER than the
-    // outermost stages (±1.6 + 2·1.2 spread) so the stack never interpenetrates
+    // outermost stages (±1.2 + 1·1.4 spread) so the stack never interpenetrates
     stageRefs.current.forEach((sg, i) => {
-      if (sg) sg.position.y = STAGES[i].y + (i - 2) * explode * 1.2;
+      if (sg) sg.position.y = STAGES[i].y + (i - 1) * explode * 1.4;
     });
     if (topCap.current) topCap.current.position.y = 2.52 + explode * 2.4;
     if (botCap.current) botCap.current.position.y = -2.05 - explode * 2.9;
@@ -474,10 +475,9 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
                 stageMatRefs.current[i] = el;
               }}
               color={s.color}
-              metalness={i === 2 || i === 4 ? 0.35 : 0.1}
-              roughness={0.62}
-              emissive={i === 4 ? "#0c4a61" : "#000000"}
-              emissiveIntensity={i === 4 ? 0.25 : 0}
+              // the KDF bed (stage 2) is copper-zinc granules — it reads metallic
+              metalness={i === 1 ? 0.55 : 0.1}
+              roughness={i === 1 ? 0.45 : 0.62}
               transparent
             />
           </mesh>

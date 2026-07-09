@@ -43,14 +43,12 @@ export const COLUMN_PATHS: DrawPath[] = [
   // 4 — tri-clamp sanitary flange band (mid-body landmark)
   { id: "triclamp", weight: "heavy", order: 4, d: "M324 446 L636 446 M324 466 L636 466" },
 
-  // 5 — five media-bed divisions (each bed gets its own hatch in the UI)
+  // 5 — media-bed divisions (3 beds → 2 internal dividers; each bed hatched in the UI)
   {
     id: "beds",
     weight: "hair",
     order: 5,
-    d:
-      "M340 232 L620 232 M340 330 L620 330 M340 446 L620 446 " +
-      "M340 560 L620 560 M340 672 L620 672",
+    d: "M340 392 L620 392 M340 571 L620 571",
   },
 
   // 6 — bypass valve teeing off the inlet (asymmetry, recognisable feature)
@@ -108,34 +106,28 @@ function arc(cx: number, cy: number, r: number): string {
   );
 }
 
-// five media beds — each a distinct hatch, clipped to the silhouette, faded in
-// late. ONE filtration story everywhere: sediment → carbon → RO → post-carbon →
-// re-mineralise (matches the 3D stages and Plate 04).
+// three media beds — each a distinct hatch, clipped to the silhouette, faded in
+// late. ONE filtration story everywhere (the real Clear2O FHWR-3SI-20):
+// sediment → KDF 55/85 + carbon → limescale carbon (matches the 3D + Plate 04).
 export type Bed = { id: string; y0: number; y1: number; hatch: string };
 export const BEDS: Bed[] = [
-  { id: "sediment", y0: 212, y1: 330, hatch: "h-stipple" },
-  { id: "carbon", y0: 330, y1: 446, hatch: "h-vert" },
-  { id: "ro", y0: 446, y1: 560, hatch: "h-grid" },
-  { id: "post-carbon", y0: 560, y1: 660, hatch: "h-dots" },
-  { id: "remineralise", y0: 660, y1: 750, hatch: "h-diag" },
+  { id: "sediment", y0: 212, y1: 392, hatch: "h-stipple" },
+  { id: "kdf-carbon", y0: 392, y1: 571, hatch: "h-dots" },
+  { id: "limescale-carbon", y0: 571, y1: 750, hatch: "h-vert" },
 ];
 
 // labelled balloons keyed to the bill of materials (centre of each media bed)
 export type Balloon = { n: string; x: number; y: number };
 export const BOM_BALLOONS: Balloon[] = [
-  { n: "1", x: 700, y: 181 }, // housing
-  { n: "2", x: 700, y: 281 }, // sleeve / sediment
-  { n: "3", x: 700, y: 388 }, // carbon block
-  { n: "4", x: 700, y: 503 }, // catalytic / mineral
-  { n: "5", x: 700, y: 616 }, // UV / polish
+  { n: "1", x: 700, y: 302 }, // graded sediment cartridge
+  { n: "2", x: 700, y: 481 }, // KDF 55/85 + coconut carbon
+  { n: "3", x: 700, y: 660 }, // limescale-reduction carbon
 ];
 
 export const BOM_ROWS = [
-  ["1", "SEDIMENT", "20µm PRE-FILTER*"],
-  ["2", "CARBON BLOCK", "CHLORINE · TASTE*"],
-  ["3", "RO MEMBRANE", "LEAD · PFAS*"],
-  ["4", "POST-CARBON", "FINAL POLISH*"],
-  ["5", "RE-MINERALISE", "BALANCED pH*"],
+  ["1", "SEDIMENT 3-LAYER", "10/5/1µm GRADED*"],
+  ["2", "KDF 55/85 + GAC", "HEAVY METALS · CHLORINE*"],
+  ["3", "LIMESCALE CARBON", "SCALE · TASTE · 1µm*"],
 ];
 
 export const REVISIONS = [

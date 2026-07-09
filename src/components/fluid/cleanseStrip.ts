@@ -36,10 +36,10 @@ void main(){
   vec2 uv = vUv;                 // y: 0 = outlet (base), 1 = inlet (top)
   float aspect = uRes.x / max(uRes.y, 1.0);
 
-  // purity rises toward the base, stepping at five media beds
+  // purity rises toward the base, stepping at the three media beds
   float p = smoothstep(0.96, 0.04, uv.y);
-  float stepped = floor(p * 5.0) / 5.0;
-  float purity = clamp(mix(p, stepped + 0.1, 0.55), 0.0, 1.0);
+  float stepped = floor(p * 3.0) / 3.0;
+  float purity = clamp(mix(p, stepped + 0.14, 0.55), 0.0, 1.0);
 
   vec3 dirty = vec3(0.30, 0.285, 0.17);
   vec3 clean = vec3(0.36, 0.79, 0.93);

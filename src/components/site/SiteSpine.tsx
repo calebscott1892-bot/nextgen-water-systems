@@ -44,8 +44,8 @@ function ProblemPlate() {
   const items = [
     { n: "01", a: 328, label: "CHLORINE", note: "taste, odour, by-products" },
     { n: "02", a: 26, label: "LEAD (Pb)", note: "from older fittings*" },
-    { n: "03", a: 112, label: "PFAS", note: "‘forever chemicals’*" },
-    { n: "04", a: 205, label: "SEDIMENT", note: "grit · rust · scale" },
+    { n: "03", a: 112, label: "IRON & H₂S", note: "staining · ‘rotten-egg’*" },
+    { n: "04", a: 205, label: "SEDIMENT & SCALE", note: "grit · rust · hardness" },
   ];
   return (
     <Plate id="plate-problem" sheet="03" rev="E" name="DETAIL A — CONTAMINANTS" plateNo="PLATE 03" kicker="REV E · DETAIL A — SCALE 4:1 · UNFILTERED SUPPLY">
@@ -58,8 +58,8 @@ function ProblemPlate() {
           </h2>
           <p className="sheet-p">
             Town water is treated to be safe to supply — not to be the best water your family could drink. On the way to
-            your tap it can pick up chlorine, dissolved lead, PFAS that treatment was never built to remove, and fine
-            sediment you only notice once it’s in the glass. None of it changes how the water looks.{" "}
+            your tap it can pick up chlorine, dissolved lead from older fittings, iron that stains and sulphur you can
+            smell, and fine sediment you only notice once it’s in the glass. None of it changes how the water looks.{" "}
             <span className="ink-underline">Clear isn’t the same as clean.</span>
           </p>
           <p className="sheet-fig">DETAIL A · NOT TO SCALE · presence and levels confirmed by your free in-home test*</p>
@@ -88,12 +88,11 @@ function ProblemPlate() {
 }
 
 /* ─────────────────────── PLATE 04 — FLOW TEST ─────────────────────── */
+// the real Clear2O FHWR-3SI-20 stages, in sheet order
 const STAGES = [
-  { n: "1", title: "SEDIMENT", job: "20µm pre-filter · grit, rust, scale*" },
-  { n: "2", title: "CARBON BLOCK", job: "chlorine, taste & odour*" },
-  { n: "3", title: "RO MEMBRANE", job: "dissolved solids, lead, PFAS*" },
-  { n: "4", title: "POST-CARBON", job: "final polish*" },
-  { n: "5", title: "RE-MINERALISE", job: "balanced pH & minerals*" },
+  { n: "1", title: "SEDIMENT 3-LAYER", job: "10/5/1µm graded · grit, rust, silt*" },
+  { n: "2", title: "KDF 55/85 + CARBON", job: "heavy metals, chlorine, bacteria control*" },
+  { n: "3", title: "LIMESCALE CARBON", job: "scale reduction · taste · 1µm polish*" },
 ];
 function FlowTestPlate() {
   const reduced = useReducedMotion();
@@ -121,13 +120,13 @@ function FlowTestPlate() {
     <Plate id="plate-flowtest" sheet="04" rev="F" name="SECTION A–A · FLOW TEST" plateNo="PLATE 04" kicker="REV F · SECTION A–A · FLOW TEST" className="sheet--center">
       <div className="flow-head">
         <h2 className="sheet-h">
-          FIVE STAGES.
+          THREE STAGES.
           <br />
-          ONE QUIET COLUMN.
+          ONE QUIET SYSTEM.
         </h2>
         <p className="sheet-p">
-          The whole idea, drawn as a test rig. Water enters at the top carrying everything from the previous sheet and
-          leaves the base clear — five media beds, each doing one job, in order.
+          The whole idea, drawn as a test rig. Water enters carrying everything from the previous sheet and leaves
+          clear — three media beds, each doing one job, in order.
         </p>
       </div>
       <div className="flow-stage">
@@ -187,13 +186,17 @@ function FlowTestPlate() {
 }
 
 /* ─────────────────────── PLATE 05 — BENCHMARK ─────────────────────── */
+/* Claims scoped to what a KDF/carbon system can actually do (no RO → no
+   PFAS / fluoride / TDS rows — those are achievable only with reverse
+   osmosis and must not be claimed for this hardware). All figures remain
+   placeholder pending NATA-accredited certificates. */
 const SCHEDULE = [
-  { c: "LEAD", v: 98, m: "RO · NSF/ANSI-style*" },
-  { c: "CHLORINE", v: 97, m: "carbon block*" },
-  { c: "FLUORIDE", v: 90, m: "RO membrane*" },
-  { c: "PFAS", v: 95, m: "RO membrane*" },
-  { c: "HEAVY METALS", v: 96, m: "multi-stage*" },
-  { c: "SEDIMENT", v: 99, m: "20µm pre-filter*" },
+  { c: "CHLORINE", v: 99, m: "carbon + KDF redox*" },
+  { c: "LEAD", v: 98, m: "KDF 55 redox — soluble cations*" },
+  { c: "HEAVY METALS", v: 96, m: "KDF redox*" },
+  { c: "IRON & H₂S", v: 95, m: "KDF 85 redox*" },
+  { c: "SCALE / LIMESCALE", v: 90, m: "limescale-reduction media*" },
+  { c: "SEDIMENT", v: 99, m: "10/5/1µm 3-layer pre-filter*" },
 ];
 function BenchmarkPlate() {
   return (
