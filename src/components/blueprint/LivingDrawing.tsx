@@ -46,6 +46,11 @@ const STROKE: Record<string, [string, number]> = {
   hair: ["#2f6e9c", 1.3],
 };
 
+// DEV/CAPTURE aid: ?jp=0.62 freezes the 3D journey scalar at that value so any
+// beat can be framed and captured in isolation. Read once on mount; null in
+// normal use, so the scroll owns the scalar.
+let DBG_JP: number | null = null;
+
 export function LivingDrawing() {
   const reduced = useReducedMotion();
   const rootRef = useRef<HTMLElement>(null);
@@ -61,6 +66,18 @@ export function LivingDrawing() {
   useEffect(() => {
     setWebgl(!reduced && hasWebGL());
   }, [reduced]);
+
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get("jp");
+    const v = raw === null ? NaN : parseFloat(raw);
+    if (!Number.isNaN(v)) {
+      DBG_JP = Math.min(1, Math.max(0, v));
+      u3d.current = DBG_JP;
+    }
+    return () => {
+      DBG_JP = null;
+    };
+  }, []);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -163,7 +180,7 @@ export function LivingDrawing() {
 
           // 3D reads the raw journey scalar; the canvas hides only while the
           // vellum plate is full (so the drawing reads as ink, not ink-over-chrome)
-          u3d.current = p;
+          u3d.current = DBG_JP ?? p;
           if (canvasWrapRef.current) {
             canvasWrapRef.current.style.opacity = String(
               gsap.utils.clamp(0, 1, gsap.utils.mapRange(0.46, 0.62, 1, 0, bpU)),

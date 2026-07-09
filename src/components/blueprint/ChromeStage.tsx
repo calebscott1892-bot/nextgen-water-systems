@@ -5,6 +5,7 @@ import { Environment, ContactShadows, Html } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import { useMemo, useRef, useState, type MutableRefObject } from "react";
 import * as THREE from "three";
+import { asset } from "@/lib/asset";
 
 /**
  * The live NGW-01 + the full POV journey, fused with the blueprint round trip.
@@ -27,6 +28,14 @@ type Props = { progress: MutableRefObject<number>; active: boolean };
 // engineered detail kit (gauge, clamp band, bypass, drain, feet, crown, plate)
 const KIT_BODY = true;
 const KIT_CAPS = false;
+
+// DEV forensic (?hide=a,b,c): knock out scene elements to bisect a rogue frame.
+// Inert in normal use.
+const HIDE: string[] =
+  typeof window !== "undefined"
+    ? (new URLSearchParams(window.location.search).get("hide") || "").split(",").filter(Boolean)
+    : [];
+const hidden = (k: string) => HIDE.includes(k);
 
 const ss = (x: number, a: number, b: number) => THREE.MathUtils.smoothstep(x, a, b);
 const lerp = THREE.MathUtils.lerp;
@@ -51,6 +60,75 @@ const CAM: Key[] = [
 function seg(p: number): [Key, Key] {
   for (let i = 0; i < CAM.length - 1; i++) if (p <= CAM[i + 1].p) return [CAM[i], CAM[i + 1]];
   return [CAM[CAM.length - 2], CAM[CAM.length - 1]];
+}
+
+/** DEV forensic (?dbgray): raycast from screen centre and log what's actually
+ *  in front of the camera — for diagnosing "mystery surface" frames. */
+function DebugRay() {
+  const { camera, scene } = useThree();
+  const done = useRef(false);
+  useFrame((state) => {
+    if (done.current || state.clock.elapsedTime < 3) return;
+    done.current = true;
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(new THREE.Vector2(0, 0), camera);
+    const hits = ray.intersectObjects(scene.children, true);
+    // eslint-disable-next-line no-console
+    console.log(
+      "DBGRAY",
+      JSON.stringify(
+        hits.slice(0, 8).map((h) => {
+          const o = h.object as THREE.Mesh;
+          const geo = o.geometry as THREE.BufferGeometry & { type?: string; parameters?: Record<string, unknown> };
+          const mat = (Array.isArray(o.material) ? o.material[0] : o.material) as THREE.MeshStandardMaterial | undefined;
+          return {
+            d: +h.distance.toFixed(2),
+            g: geo?.type,
+            p: geo?.parameters ? JSON.stringify(geo.parameters).slice(0, 60) : "",
+            op: mat?.opacity,
+            t: mat?.transparent,
+            c: mat?.color?.getHexString?.(),
+          };
+        }),
+      ),
+    );
+  });
+  return null;
+}
+
+/** Studio lights that DIM during the interior dive — directionals have no
+ *  shadows, so without this they flood the vessel interior and five stacked
+ *  translucent stages wash out to milk. Inside a sealed steel vessel it should
+ *  be dark: the cyan bore-glow becomes the only meaningful source. */
+function JourneyLights({ progress }: { progress: MutableRefObject<number> }) {
+  const amb = useRef<THREE.AmbientLight>(null);
+  const key = useRef<THREE.DirectionalLight>(null);
+  const rim = useRef<THREE.DirectionalLight>(null);
+  const fill = useRef<THREE.DirectionalLight>(null);
+  const { scene } = useThree();
+  useFrame(() => {
+    const p = progress.current;
+    const through = ss(p, 0.52, 0.58) * (1 - ss(p, 0.66, 0.72));
+    const dimmed = 1 - through * 0.82;
+    if (amb.current) amb.current.intensity = 0.12 * dimmed;
+    if (key.current) key.current.intensity = 0.85 * dimmed;
+    if (rim.current) rim.current.intensity = 0.6 * dimmed;
+    if (fill.current) fill.current.intensity = 0.22 * dimmed;
+    // the ONE global knob that actually kills the interior wash: HDR softboxes
+    // in the env map are tens of units bright, so even tiny per-material
+    // envMapIntensity residues re-light the ghosted stack. Kill env globally
+    // inside the vessel; everything restores on the pull-out.
+    scene.environmentIntensity = 0.82 * (1 - through * 0.97);
+  });
+  return (
+    <>
+      <ambientLight ref={amb} intensity={0.12} />
+      {/* warm key for form; two cyan rims rake the edges as brand accent */}
+      <directionalLight ref={key} position={[4, 6, 5]} intensity={0.85} color="#eaf6ff" />
+      <directionalLight ref={rim} position={[-5.5, 1.5, -3]} intensity={0.6} color="#29c2ee" />
+      <directionalLight ref={fill} position={[-1.5, -1, 4.5]} intensity={0.22} color="#7fd8f5" />
+    </>
+  );
 }
 
 function Rig({ progress }: { progress: MutableRefObject<number> }) {
@@ -103,6 +181,10 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
   const kitMats = useRef<(THREE.Material & { opacity: number; transparent: boolean; depthWrite: boolean })[]>([]);
   const topCap = useRef<THREE.Group>(null);
   const botCap = useRef<THREE.Group>(null);
+  const topCapMat = useRef<THREE.MeshPhysicalMaterial>(null);
+  const botCapMat = useRef<THREE.MeshPhysicalMaterial>(null);
+  const ringMat = useRef<THREE.MeshStandardMaterial>(null);
+  const boreLight = useRef<THREE.PointLight>(null);
   const [labelsOn, setLabelsOn] = useState(false);
 
   const kitMat = (el: THREE.Material | null) => {
@@ -166,19 +248,60 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
     return tex;
   }, []);
 
+  // brushed-grain bump — hairline vertical strokes of varying strength give the
+  // steel a tactile machined grain (light catches individual brush lines). Kept
+  // as a classic bumpMap (cheap, universally supported — no anisotropy ext).
+  const bumpMap = useMemo(() => {
+    if (typeof document === "undefined") return null;
+    const s = 512;
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = s;
+    const g = cv.getContext("2d");
+    if (!g) return null;
+    g.fillStyle = "#808080"; // neutral height
+    g.fillRect(0, 0, s, s);
+    for (let x = 0; x < s; x++) {
+      if (Math.random() < 0.6) {
+        const tone = 128 + (Math.random() - 0.5) * 44; // ±22 around neutral
+        g.globalAlpha = 0.25 + Math.random() * 0.5;
+        g.strokeStyle = `rgb(${tone | 0},${tone | 0},${tone | 0})`;
+        g.beginPath();
+        const seg0 = Math.random() * s * 0.5;
+        g.moveTo(x + 0.5, seg0);
+        g.lineTo(x + 0.5, seg0 + s * (0.3 + Math.random() * 0.7));
+        g.stroke();
+      }
+    }
+    const tex = new THREE.CanvasTexture(cv);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(3, 4);
+    tex.anisotropy = 4;
+    return tex;
+  }, []);
+
   useFrame((state) => {
     const p = progress.current;
     const g = group.current;
     const dock = ss(p, 0.04, 0.1); // settled to dock (spin stops BEFORE the trace)
     const reg = ss(p, 0.33, 0.42); // dock framing → journey framing (after the plate exits)
     const onSide = ss(p, 0.42, 0.52); // rotate onto its side, lid toward viewer
-    const through = ss(p, 0.52, 0.58) * (1 - ss(p, 0.66, 0.72)); // chambers stay see-through until the pull-back
+    const through = ss(p, 0.52, 0.58) * (1 - ss(p, 0.66, 0.72)); // interior-pass window
     const ex = ss(p, 0.58, 0.82); // split apart (parts already parting as the camera arrives)
     const reform = ss(p, 0.88, 0.98); // reassemble + right itself
     const explode = ex * (1 - reform);
 
     const wantLabels = explode > 0.4;
     if (wantLabels !== labelsOn) setLabelsOn(wantLabels);
+
+    // interior bore-glow — ignites only for the on-axis dive so the chambers
+    // read as a lit passage instead of a black void, with a soft breath
+    if (boreLight.current) {
+      const breathe = 1 + Math.sin(state.clock.elapsedTime * 2.1) * 0.12;
+      boreLight.current.intensity = through * 0.3 * breathe;
+    }
+    // the ring's HDR bloom (mipmapBlur) floods the whole frame with a pale wash
+    // once the camera is inside it — dim it to a line for the interior pass
+    if (ringMat.current) ringMat.current.emissiveIntensity = lerp(1.6, 0.18, through);
 
     if (g) {
       g.position.x = lerp(-0.71, 0, reg);
@@ -203,19 +326,45 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
       const gm = glassMat.current;
       gm.opacity = lerp(0.9, 0.04, fade);
       gm.depthWrite = gm.opacity > 0.5;
+      // transmission ignores opacity — with the camera INSIDE the sleeve during
+      // the dive, the transmission pass resamples the bright scene into a milky
+      // wash no matter how low opacity goes. The camera is inside the sleeve
+      // anyway, so simply hide it for the interior pass.
+      gm.visible = through < 0.5;
     }
     kitMats.current.forEach((m) => {
       m.opacity = lerp(1, 0.05, fade);
       m.transparent = m.opacity < 0.995;
       m.depthWrite = m.opacity > 0.5;
+      // the ghosted kit must stop catching the softbox too — the clamp band's
+      // env-lit inner face otherwise glows around the camera during the dive
+      const mm = m as unknown as THREE.MeshStandardMaterial & { userData: { baseEnv?: number } };
+      if (mm.envMapIntensity !== undefined) {
+        mm.userData.baseEnv ??= mm.envMapIntensity;
+        mm.envMapIntensity = lerp(mm.userData.baseEnv, 0.05, fade);
+      }
     });
 
-    // fly-through: stages go translucent so each chamber tints the pass
-    stageMatRefs.current.forEach((m) => {
+    // the caps ghost ONLY through the dive window — the camera flies toward the
+    // base cap, which otherwise dead-ends the bore as an opaque env-lit disc.
+    // through→0 by the pull-back, so the explode beat gets solid flying caps.
+    [topCapMat.current, botCapMat.current].forEach((m) => {
       if (m) {
-        m.opacity = lerp(1, 0.32, through);
-        m.transparent = m.opacity < 0.995;
+        m.opacity = lerp(1, 0.05, through);
         m.depthWrite = m.opacity > 0.5;
+        m.envMapIntensity = lerp(CAPS.envMapIntensity, 0.08, through);
+      }
+    });
+
+    // fly-through: stages go translucent AND drop their studio-env reflection —
+    // otherwise the bright softbox washes the near puck into a pale disc. Dark,
+    // cyan-lit chambers read as a passage instead.
+    stageMatRefs.current.forEach((m, i) => {
+      if (m) {
+        m.opacity = lerp(1, 0.3, through);
+        m.depthWrite = m.opacity > 0.5;
+        m.envMapIntensity = lerp(1, 0.06, through);
+        m.color.set(STAGES[i].color).multiplyScalar(1 - through * 0.7);
       }
     });
 
@@ -230,9 +379,22 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
 
   return (
     <group ref={group}>
+      {/* interior bore-glow (fly-through only — intensity driven in useFrame) */}
+      {!hidden("borelight") && (
+        <pointLight ref={boreLight} position={[0, 0.2, 0]} color="#29c2ee" intensity={0} distance={2.2} decay={2} />
+      )}
+
       {/* housing shell */}
-      <mesh geometry={housingGeo}>
-        <meshPhysicalMaterial ref={housingMat} {...STEEL} roughnessMap={roughMap ?? undefined} transparent opacity={1} />
+      <mesh geometry={housingGeo} visible={!hidden("housing")}>
+        <meshPhysicalMaterial
+          ref={housingMat}
+          {...STEEL}
+          roughnessMap={roughMap ?? undefined}
+          bumpMap={bumpMap ?? undefined}
+          bumpScale={0.012}
+          transparent
+          opacity={1}
+        />
       </mesh>
 
       {/* glass sleeve (revealed as the shell ghosts) */}
@@ -241,7 +403,7 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
         <meshPhysicalMaterial ref={glassMat} color="#dff3fb" metalness={0} roughness={0.04} transmission={1} thickness={0.5} ior={1.45} transparent opacity={0.9} side={THREE.DoubleSide} />
       </mesh>
 
-      {KIT_BODY && (
+      {KIT_BODY && !hidden("kit") && (
         <>
           {/* ── body-mounted kit (fades with the shell) ── */}
           {/* level-gauge sight window: dark inset + glowing cyan gauge bar */}
@@ -299,7 +461,8 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
       )}
 
       {/* ── media stages ── */}
-      {STAGES.map((s, i) => (
+      {!hidden("stages") &&
+      STAGES.map((s, i) => (
         <group
           key={s.y}
           ref={(el) => {
@@ -318,6 +481,7 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
               roughness={0.62}
               emissive={i === 4 ? "#0c4a61" : "#000000"}
               emissiveIntensity={i === 4 ? 0.25 : 0}
+              transparent
             />
           </mesh>
           <Html position={[0, 0, -1.05]} center zIndexRange={[12, 0]} className="stage-label-wrap">
@@ -334,8 +498,7 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
       <group ref={botCap} position={[0, -2.05, 0]}>
         <mesh>
           <cylinderGeometry args={[0.99, 0.99, 0.3, 96]} />
-          <meshPhysicalMaterial {...CAPS} />
-        </mesh>
+          <meshPhysicalMaterial ref={botCapMat} {...CAPS} transparent /></mesh>
         {KIT_CAPS && (
           <>
             <mesh position={[0, -0.18, 0]}>
@@ -366,7 +529,7 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
       <group ref={topCap} position={[0, 2.52, 0]}>
         <mesh>
           <cylinderGeometry args={[0.36, 0.36, 0.42, 64]} />
-          <meshPhysicalMaterial {...CAPS} />
+          <meshPhysicalMaterial ref={topCapMat} {...CAPS} transparent />
         </mesh>
         {KIT_CAPS && (
           <>
@@ -400,9 +563,9 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
 
       {/* cyan diffusion ring — SEATED into the lower flange band (an engineered
           inset, not a floating hoop), and the ONLY thing that blooms */}
-      <mesh position={[0, -1.6, 0]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh position={[0, -1.6, 0]} rotation={[Math.PI / 2, 0, 0]} visible={!hidden("ring")}>
         <torusGeometry args={[0.99, 0.018, 14, 96]} />
-        <meshStandardMaterial color="#29c2ee" emissive="#29c2ee" emissiveIntensity={1.6} toneMapped={false} />
+        <meshStandardMaterial ref={ringMat} color="#29c2ee" emissive="#29c2ee" emissiveIntensity={1.6} toneMapped={false} />
       </mesh>
     </group>
   );
@@ -414,34 +577,42 @@ export default function ChromeStage({ progress, active }: Props) {
       frameloop={active ? "always" : "never"}
       dpr={[1, 2]}
       camera={{ position: [0, 0, 8.8], fov: 38 }}
-      gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
-      onCreated={({ gl }) => {
+      // OPAQUE canvas: blending transparent chrome/stage layers against an
+      // alpha framebuffer and letting the BROWSER composite produces the classic
+      // milky wash (alpha mismatch, worst during the ghosted fly-through). The
+      // canvas sits UNDER the SVG plate, so it can own its dark studio backdrop.
+      gl={{ alpha: false, antialias: true, powerPreference: "high-performance" }}
+      onCreated={({ gl, scene }) => {
         gl.toneMapping = THREE.ACESFilmicToneMapping;
         gl.toneMappingExposure = 0.98;
+        gl.setClearColor("#0a121b", 1);
+        scene.background = new THREE.Color("#0a121b");
       }}
       style={{ position: "absolute", inset: 0 }}
     >
       {/* Studio HDRI softbox reflections — clean, product-photography chrome, and
           (unlike an in-scene Lightformer bake) it renders reliably on real GPUs.
+          SELF-HOSTED (public/hdri) so the 3D never depends on a third-party CDN.
           ACES tone-mapping + refined metal + directional cyan brand rims do the
           rest. The SVG plate is the no-WebGL / reduced-motion fallback. */}
-      <Environment preset="studio" environmentIntensity={0.82} />
+      <Environment files={asset("/hdri/studio_small_03_1k.hdr")} environmentIntensity={0.82} />
 
-      <ambientLight intensity={0.12} />
-      {/* warm key for form; two cyan rims rake the edges as brand accent */}
-      <directionalLight position={[4, 6, 5]} intensity={0.85} color="#eaf6ff" />
-      <directionalLight position={[-5.5, 1.5, -3]} intensity={0.6} color="#29c2ee" />
-      <directionalLight position={[-1.5, -1, 4.5]} intensity={0.22} color="#7fd8f5" />
+      <JourneyLights progress={progress} />
 
       <ChromeColumn progress={progress} />
       <Rig progress={progress} />
+      {typeof window !== "undefined" && window.location.search.includes("dbgray") && <DebugRay />}
 
-      <ContactShadows position={[0, -2.38, 0]} opacity={0.55} scale={13} blur={3} far={5} color="#000000" />
+      {!hidden("shadows") && (
+        <ContactShadows position={[0, -2.38, 0]} opacity={0.55} scale={13} blur={3} far={5} color="#000000" />
+      )}
 
-      <EffectComposer>
-        <Bloom intensity={0.42} luminanceThreshold={0.82} luminanceSmoothing={0.28} mipmapBlur />
-        <Vignette eskil={false} offset={0.26} darkness={0.55} />
-      </EffectComposer>
+      {!hidden("post") && (
+        <EffectComposer>
+          <Bloom intensity={0.42} luminanceThreshold={0.82} luminanceSmoothing={0.28} mipmapBlur />
+          <Vignette eskil={false} offset={0.26} darkness={0.55} />
+        </EffectComposer>
+      )}
     </Canvas>
   );
 }
