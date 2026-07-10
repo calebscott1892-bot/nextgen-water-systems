@@ -33,12 +33,14 @@ float noise(vec2 p){
 float fbm(vec2 p){ float v=0.0, a=0.5; for(int i=0;i<4;i++){ v+=a*noise(p); p*=2.0; a*=0.5; } return v; }
 
 void main(){
-  vec2 uv = vUv;                 // y: 0 = outlet (base), 1 = inlet (top)
+  vec2 uv = vUv;                 // Section A–A: x 0/1 = sump walls, x 0.5 = core
   float aspect = uRes.x / max(uRes.y, 1.0);
 
-  // purity rises toward the base, stepping at the three media beds
-  float p = smoothstep(0.96, 0.04, uv.y);
-  float stepped = floor(p * 3.0) / 3.0;
+  // RADIAL flow-path purity (outside-in): turbid in the annulus at the walls,
+  // clarifying through the media wall, clean in the hollow core at centre
+  float d = abs(uv.x - 0.5);            // 0 at core, ~0.5 at the sump wall
+  float p = smoothstep(0.46, 0.08, d);
+  float stepped = floor(p * 3.0) / 3.0; // steps at annulus → media → core
   float purity = clamp(mix(p, stepped + 0.14, 0.55), 0.0, 1.0);
 
   vec3 dirty = vec3(0.30, 0.285, 0.17);
@@ -50,9 +52,10 @@ void main(){
   float mote = smoothstep(0.62, 0.68, g) * (1.0 - purity);
   col = mix(col, vec3(0.13, 0.11, 0.06), mote * 0.85);
 
-  // slow vertical flow streaks in the turbid region
-  float streak = fbm(vec2(uv.x * aspect * 3.0, uv.y * 5.0 + uTime * 0.8));
-  col += (streak - 0.5) * (1.0 - purity) * 0.16;
+  // flow streaks follow the true path: DOWN in the annulus, UP the core
+  float dir = mix(1.0, -1.0, step(d, 0.1)); // +t = down (annulus), -t = up (core)
+  float streak = fbm(vec2(uv.x * aspect * 3.0, uv.y * 5.0 + uTime * 0.8 * dir));
+  col += (streak - 0.5) * mix(0.16, 0.08, purity);
 
   // caustic shimmer where the water has cleared
   float ca = max(sin(uv.x * aspect * 9.0 + uTime * 1.4) * sin(uv.y * 11.0 - uTime * 1.1), 0.0);
