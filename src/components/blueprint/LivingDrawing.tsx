@@ -42,6 +42,77 @@ function hasWebGL(): boolean {
 const INK = [...ASSEMBLY_PATHS].filter((p) => p.id !== "dim-width").sort((a, b) => a.order - b.order);
 const DIM = ASSEMBLY_PATHS.find((p) => p.id === "dim-width")!;
 
+/** Phase 2 — the copy beats that ride the journey. Each enters/exits over a
+ *  window of the raw journey scalar p (fade margin f), scrubbed by applyFrame
+ *  so they're fully reversible. Max ~2 sentences + 1 stat per beat; the
+ *  vessel-to-vessel slides stay copy-free. */
+type Beat = {
+  id: string;
+  a: number;
+  b: number;
+  f: number;
+  /** FULL literal class name — Tailwind's @layer scanner purges classes it
+   *  can't find as literals in source, so never construct these */
+  pos: "pb--left" | "pb--right" | "pb--tl" | "pb--bc";
+  eyebrow: string;
+  h: string;
+  body: string;
+  stat?: string;
+  cta?: boolean;
+  cue?: string;
+};
+const BEATS: Beat[] = [
+  {
+    id: "hero", a: -0.05, b: 0.075, f: 0.03, pos: "pb--left",
+    eyebrow: "NGW-01 · WHOLE-HOME FILTRATION",
+    h: "One machine at the mains.",
+    body: "Three stainless vessels feed every tap in the house filtered water — no jugs, no under-sink clutter.",
+    cta: true,
+    cue: "SCROLL — THE DRAWING EXPLAINS ITSELF",
+  },
+  {
+    id: "run", a: 0.37, b: 0.445, f: 0.025, pos: "pb--left",
+    eyebrow: "INSIDE THE MACHINE",
+    h: "The water run.",
+    body: "Raw water in at vessel one, clean water out at three. Follow it through each stage.",
+  },
+  {
+    id: "s1", a: 0.45, b: 0.575, f: 0.022, pos: "pb--right",
+    eyebrow: "STAGE 01 · GRADED SEDIMENT",
+    h: "The coarse work, first.",
+    body: "Three graded layers catch grit, rust and silt, so the finer media behind them never clogs early.",
+    stat: "10 / 5 / 1 µm*",
+  },
+  {
+    id: "s2", a: 0.565, b: 0.67, f: 0.022, pos: "pb--left",
+    eyebrow: "STAGE 02 · KDF 55/85 + CARBON",
+    h: "The redox bed.",
+    body: "Copper-zinc granules trade electrons with what's dissolved — metals bind to the media, chlorine converts. Coconut carbon polishes taste behind it.",
+    stat: "up to 18-month cartridge life*",
+  },
+  {
+    id: "s3", a: 0.66, b: 0.765, f: 0.022, pos: "pb--right",
+    eyebrow: "STAGE 03 · LIMESCALE CARBON",
+    h: "The finish.",
+    body: "Scale-reduction media changes how minerals crystallise, so they rinse through instead of coating your appliances.",
+    stat: "1 µm final polish*",
+  },
+  {
+    id: "service", a: 0.79, b: 0.925, f: 0.025, pos: "pb--tl",
+    eyebrow: "SERVICEABLE BY DESIGN",
+    h: "Heads lift. Cartridges swap.",
+    body: "The housings stay plumbed for life — a cartridge change takes minutes. Tap a label to read each part.",
+  },
+  {
+    // left column — the settled machine owns the centre of the frame
+    id: "handoff", a: 0.93, b: 2, f: 0.03, pos: "pb--left",
+    eyebrow: "THAT'S THE MACHINE",
+    h: "The drawing set continues.",
+    body: "Proof, install and booking — cont'd on the sheets below.",
+    cue: "CONT'D ON SHT 02 ↓",
+  },
+];
+
 const STROKE: Record<string, [string, number]> = {
   centre: ["#86a8c3", 1],
   heavy: ["#0d2738", 2.4],
@@ -150,6 +221,8 @@ export function LivingDrawing() {
     // the sheet's drop shadow exists only while the paper does — a shadow
     // outlining an invisible sheet was the old "card on a background" tell
     const shadowEl = root.querySelector<HTMLElement>(".plate-shadow");
+    // Phase 2 copy beats (scrubbed by applyFrame)
+    const hudEls = Array.from(root.querySelectorAll<HTMLElement>(".pbeat"));
 
     // static fully-drawn plate for reduced motion. Also clear any stale tilt a
     // prior non-reduced fallback run wrote (raw setAttribute survives revert).
@@ -157,6 +230,9 @@ export function LivingDrawing() {
       if (col) col.removeAttribute("transform");
       paper.forEach((e) => (e.style.opacity = "1"));
       if (shadowEl) shadowEl.style.opacity = "1";
+      // reduced motion shows the finished plate — the scroll-scrubbed copy
+      // beats have no meaning there (the tail sheets carry the story)
+      hudEls.forEach((el) => (el.style.display = "none"));
       if (shade) shade.style.opacity = "0";
       if (beds) beds.style.opacity = "1";
       if (bom) bom.style.opacity = "1";
@@ -229,13 +305,25 @@ export function LivingDrawing() {
         {
           // The 3D journey owns the whole scroll (orbit → dock → rotate → through
           // → split → settle). The blueprint round trip is ONE early act: a
-          // windowed there-and-back over p∈[0.10, 0.33] — starting only once the
+          // windowed there-and-back over p∈[0.10, 0.36] — starting only once the
           // camera has DOCKED, so the ink never traces over a moving model.
-          const bp = gsap.utils.clamp(0, 1, gsap.utils.mapRange(0.1, 0.33, 0, 1, p));
-          // trapezoid, not triangle: draw in over the first 38%, HOLD the finished
-          // plate through the middle, un-draw over the last 38%
-          const bpU = gsap.utils.clamp(0, 1, Math.min(bp / 0.38, (1 - bp) / 0.38));
+          const bp = gsap.utils.clamp(0, 1, gsap.utils.mapRange(0.1, 0.36, 0, 1, p));
+          // trapezoid, not triangle: draw in over the first 30%, HOLD the finished
+          // plate through the middle (widened — the plate is worth reading), and
+          // un-draw over the last 30%
+          const bpU = gsap.utils.clamp(0, 1, Math.min(bp / 0.3, (1 - bp) / 0.3));
           tl.progress(bpU);
+
+          // Phase 2 — the copy beats: window each HUD element on the raw p
+          for (const el of hudEls) {
+            const a = parseFloat(el.dataset.a || "0");
+            const b2 = parseFloat(el.dataset.b || "1");
+            const f = parseFloat(el.dataset.f || "0.03");
+            const io = gsap.utils.clamp(0, 1, Math.min((p - a) / f, (b2 - p) / f));
+            el.style.opacity = String(io);
+            el.style.transform = `translateY(${(1 - io) * 16}px)`;
+            el.style.visibility = io <= 0.001 ? "hidden" : "visible";
+          }
 
           // 3D reads the raw journey scalar; the canvas hides only while the
           // vellum plate is full (so the drawing reads as ink, not ink-over-chrome)
@@ -487,10 +575,14 @@ export function LivingDrawing() {
             </g>
           </svg>
 
-          {/* draughtsman's note — the one permitted lowercase line */}
+          {/* draughtsman's note — the one permitted lowercase line — plus the
+              plate's own CTA, stamped like an approval mark (Phase 2) */}
           <div className="jd-note">
             <span className="jd-eyebrow">NGW-01 · GENERAL ARRANGEMENT</span>
             <p>you can&rsquo;t photograph the inside of a sealed vessel. so we drew it.</p>
+            <a className="jd-stamp-cta" href="#plate-cta">
+              BOOK YOUR FREE WATER TEST →
+            </a>
           </div>
 
           {/* revision table — accrues rows as you scroll */}
@@ -541,7 +633,25 @@ export function LivingDrawing() {
             ))}
           </div>
         </div>
-        {/* the DOM half of the unified film stock (GL half is the Noise pass) */}
+        {/* Phase 2 — the copy beats that ride the journey (scrubbed windows,
+            driven from applyFrame; positions leave the parked vessel clear) */}
+        <div className="plate-hud">
+          {BEATS.map((bt) => (
+            <div key={bt.id} className={`pbeat ${bt.pos}`} data-a={bt.a} data-b={bt.b} data-f={bt.f}>
+              <span className="pb-eyebrow">{bt.eyebrow}</span>
+              <h2 className="pb-h">{bt.h}</h2>
+              <p className="pb-body">{bt.body}</p>
+              {bt.stat && <span className="pb-stat">{bt.stat}</span>}
+              {bt.cta && (
+                <a className="pb-cta" href="#plate-cta">
+                  Book your free water test
+                </a>
+              )}
+              {bt.cue && <span className="pb-cue">{bt.cue}</span>}
+            </div>
+          ))}
+        </div>
+        {/* the DOM half of the unified film stock */}
         <div className="plate-grain" aria-hidden="true" />
       </div>
     </section>

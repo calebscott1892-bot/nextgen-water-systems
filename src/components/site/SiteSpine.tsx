@@ -21,7 +21,7 @@ import { useReducedMotion } from "@/lib/useReducedMotion";
 /* ───────────────────────── PLATE 02 — TRUST ───────────────────────── */
 function TrustPlate() {
   return (
-    <Plate id="plate-trust" sheet="02" rev="D" name="GENERAL NOTES" plateNo="PLATE 02" kicker="REV D · DWG NGW-01 · GENERAL NOTES">
+    <Plate id="plate-trust" sheet="02" rev="D" name="GENERAL NOTES" plateNo="PLATE 02" kicker="REV D · DWG NGW-01 · GENERAL NOTES" className="sheet--open">
       <div className="sheet-split">
         <div className="sheet-lead">
           <h2 className="sheet-h">
@@ -57,7 +57,7 @@ function ProblemPlate() {
     { n: "04", a: 205, label: "SEDIMENT & SCALE", note: "grit · rust · hardness" },
   ];
   return (
-    <Plate id="plate-problem" sheet="03" rev="E" name="DETAIL A — CONTAMINANTS" plateNo="PLATE 03" kicker="REV E · DETAIL A — SCALE 4:1 · UNFILTERED SUPPLY">
+    <Plate id="plate-problem" sheet="03" rev="E" name="DETAIL A — CONTAMINANTS" plateNo="PLATE 03" kicker="REV E · DETAIL A — SCALE 4:1 · UNFILTERED SUPPLY" className="sheet--open">
       <div className="sheet-split">
         <div className="sheet-lead">
           <h2 className="sheet-h">
@@ -112,13 +112,10 @@ function ProblemPlate() {
   );
 }
 
-/* ─────────────────────── PLATE 04 — FLOW TEST ─────────────────────── */
-// the real Clear2O FHWR-3SI-20 stages, in sheet order
-const STAGES = [
-  { n: "1", title: "SEDIMENT 3-LAYER", job: "10/5/1µm graded · grit, rust, silt*" },
-  { n: "2", title: "KDF 55/85 + CARBON", job: "heavy metals, chlorine, bacteria control*" },
-  { n: "3", title: "LIMESCALE CARBON", job: "scale reduction · taste · 1µm polish*" },
-];
+/* ─────────────────────── PLATE 04 — FLOW TEST ───────────────────────
+   The stage-by-stage story now lives INSIDE the scroll journey (Phase 2);
+   this sheet keeps only what the journey can't show — the true Section A–A
+   cut with the live flow test. */
 function FlowTestPlate() {
   const reduced = useReducedMotion();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -142,20 +139,28 @@ function FlowTestPlate() {
   }, [reduced]);
 
   return (
-    <Plate id="plate-flowtest" sheet="04" rev="F" name="SECTION A–A · FLOW TEST" plateNo="PLATE 04" kicker="REV F · SECTION A–A · FLOW TEST" className="sheet--center">
+    <Plate
+      id="plate-flowtest"
+      sheet="04"
+      rev="F"
+      name="SECTION A–A · FLOW TEST"
+      plateNo="PLATE 04"
+      kicker="REV F · SECTION A–A · FLOW TEST"
+      className="sheet--center sheet--open"
+    >
       <div className="flow-head">
         <h2 className="sheet-h">
-          THREE STAGES.
+          SECTION A–A.
           <br />
-          ONE QUIET SYSTEM.
+          ONE CUT, WHOLE STORY.
         </h2>
         <p className="sheet-p">
-          Section A–A through one vessel — the way a cartridge filter actually works. Water enters the head, sheets{" "}
-          <em>down</em> the annular gap, is forced <em>inward</em> through the media wall, and rises clean{" "}
-          <em>up</em> the hollow core. Radial, outside-in: the whole machine in one cut.
+          The cut the journey above can&rsquo;t show: water enters the head, sheets <em>down</em> the annular gap, is
+          forced <em>inward</em> through the media wall, and rises clean <em>up</em> the hollow core. Radial,
+          outside-in — every stage works this way.
         </p>
       </div>
-      <div className="flow-stage">
+      <div className="flow-stage flow-stage--solo">
         <svg viewBox="280 90 470 730" className="flow-svg" aria-hidden="true">
           <defs>
             <linearGradient id="flowGrad" x1="0" y1="0" x2="1" y2="0">
@@ -230,19 +235,35 @@ function FlowTestPlate() {
             pathLength={1}
             fill="none"
           />
-          {/* ── flow arrows: down the annulus → in through the media → up the core ── */}
+          {/* ── flow arrows drawn in FLOW ORDER: down the annulus → in through
+              the media → up the core (three sequential passes, Phase 2) ── */}
           <path
             className="lw-draw lw-hair2 flow-arrows"
+            style={{ transitionDelay: "0.9s" }}
             d={
-              // IN / OUT arrows in the ports
+              // IN / OUT arrows in the ports + down the left + right annulus
               `M300 170 L326 170 M318 163 L326 170 L318 177 ` +
               `M704 170 L730 170 M722 163 L730 170 L722 177 ` +
-              // down the left + right annulus
               `M385 300 L385 340 M378 332 L385 340 L392 332 M385 470 L385 510 M378 502 L385 510 L392 502 ` +
-              `M645 300 L645 340 M638 332 L645 340 L652 332 M645 470 L645 510 M638 502 L645 510 L652 502 ` +
+              `M645 300 L645 340 M638 332 L645 340 L652 332 M645 470 L645 510 M638 502 L645 510 L652 502`
+            }
+            pathLength={1}
+            fill="none"
+          />
+          <path
+            className="lw-draw lw-hair2 flow-arrows"
+            style={{ transitionDelay: "1.5s" }}
+            d={
               // inward through the media wall
-              `M405 600 L458 600 M450 593 L458 600 L450 607 ` +
-              `M625 600 L572 600 M580 593 L572 600 L580 607 ` +
+              `M405 600 L458 600 M450 593 L458 600 L450 607 ` + `M625 600 L572 600 M580 593 L572 600 L580 607`
+            }
+            pathLength={1}
+            fill="none"
+          />
+          <path
+            className="lw-draw lw-hair2 flow-arrows"
+            style={{ transitionDelay: "2s" }}
+            d={
               // up the hollow core
               `M515 640 L515 600 M508 608 L515 600 L522 608 M515 470 L515 430 M508 438 L515 430 L522 438 M515 300 L515 260 M508 268 L515 260 L522 268`
             }
@@ -273,15 +294,6 @@ function FlowTestPlate() {
             508 mm*
           </text>
         </svg>
-        <ol className="flow-list">
-          {STAGES.map((s) => (
-            <li key={s.n}>
-              <span className="flow-n">{s.n}</span>
-              <span className="flow-t">{s.title}</span>
-              <span className="flow-j">{s.job}</span>
-            </li>
-          ))}
-        </ol>
       </div>
     </Plate>
   );
@@ -304,7 +316,7 @@ const SCHEDULE = [
 ];
 function BenchmarkPlate() {
   return (
-    <Plate id="plate-benchmark" sheet="05" rev="G" name="TEST DATA — REDUCTION" plateNo="PLATE 05" kicker="REV G · TEST DATA — REDUCTION BY CONTAMINANT">
+    <Plate id="plate-benchmark" sheet="05" rev="G" name="TEST DATA — REDUCTION" plateNo="PLATE 05" kicker="REV G · TEST DATA — REDUCTION BY CONTAMINANT" className="sheet--open">
       <div className="sheet-lead sheet-lead--wide">
         <h2 className="sheet-h">
           WE DON’T ASK YOU
@@ -365,7 +377,7 @@ const APPROVALS = [
 ];
 function RndPlate() {
   return (
-    <Plate id="plate-rnd" sheet="06" rev="H" name="APPROVALS BLOCK" plateNo="PLATE 06" kicker="REV H · APPROVALS — RESEARCH & RECOGNITION">
+    <Plate id="plate-rnd" sheet="06" rev="H" name="APPROVALS BLOCK" plateNo="PLATE 06" kicker="REV H · APPROVALS — RESEARCH & RECOGNITION" className="sheet--open">
       <div className="sheet-split">
         <div className="sheet-lead">
           <h2 className="sheet-h">
@@ -415,7 +427,7 @@ function BenefitsPlate() {
     { n: "04", label: "NO MORE BOTTLES", note: "less plastic, for good" },
   ];
   return (
-    <Plate id="plate-benefits" sheet="07" rev="J" name="IN SERVICE — OUTCOMES" plateNo="PLATE 07" kicker="REV J · IN SERVICE — OUTCOMES">
+    <Plate id="plate-benefits" sheet="07" rev="J" name="IN SERVICE — OUTCOMES" plateNo="PLATE 07" kicker="REV J · IN SERVICE — OUTCOMES" className="sheet--open">
       <div className="benefits-head">
         <h2 className="sheet-h">
           IT ALL COMES TOGETHER
@@ -454,7 +466,7 @@ function ProcessPlate() {
     { n: "03", t: "ENJOY", b: "Filtered water at every tap, on a smart payment plan from a low weekly amount over 36 months.*" },
   ];
   return (
-    <Plate id="plate-process" sheet="08" rev="K" name="INSTALLATION SEQUENCE" plateNo="PLATE 08" kicker="REV K · INSTALLATION — FROM TEST TO TAP">
+    <Plate id="plate-process" sheet="08" rev="K" name="INSTALLATION SEQUENCE" plateNo="PLATE 08" kicker="REV K · INSTALLATION — FROM TEST TO TAP" className="sheet--open">
       <div className="benefits-head">
         <h2 className="sheet-h">ASSESS. INSTALL. ENJOY.</h2>
         <p className="sheet-p">
@@ -472,7 +484,7 @@ function ProcessPlate() {
         ))}
       </ol>
       <a className="process-next" href="#plate-cta">
-        NEXT: BOOK YOUR FREE TEST ↓
+        CONT&rsquo;D ON SHT 09 — BOOK YOUR FREE TEST →
       </a>
     </Plate>
   );

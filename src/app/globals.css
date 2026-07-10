@@ -587,6 +587,284 @@
     inset: 0;
     z-index: 0;
   }
+  /* ── Phase 2: pointer routing — the sheet and HUD are overlays; only their
+     genuinely interactive children take hits, everything else falls through
+     to the canvas so the machine itself is touchable ── */
+  .plate-sheet,
+  .plate-svg,
+  .plate-hud {
+    pointer-events: none;
+  }
+  .plate-sheet a,
+  .plate-sheet button,
+  .plate-hud a {
+    pointer-events: auto;
+  }
+
+  /* ── Phase 2: the copy beats that ride the journey ── */
+  .plate-hud {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    font-family: var(--font-mono), monospace;
+  }
+  .pbeat {
+    position: absolute;
+    max-width: 400px;
+    opacity: 0;
+    visibility: hidden;
+  }
+  .pb--left {
+    left: clamp(24px, 6vw, 96px);
+    top: 50%;
+    translate: 0 -50%;
+  }
+  .pb--right {
+    right: clamp(24px, 6vw, 96px);
+    top: 50%;
+    translate: 0 -50%;
+  }
+  .pb--tl {
+    left: clamp(24px, 6vw, 96px);
+    top: clamp(92px, 15vh, 160px);
+    max-width: 430px;
+  }
+  .pb--bc {
+    left: 50%;
+    bottom: clamp(30px, 9vh, 90px);
+    translate: -50% 0;
+    text-align: center;
+    max-width: 560px;
+  }
+  .pb-eyebrow {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    color: #29c2ee;
+  }
+  .pb-h {
+    margin-top: 10px;
+    font-family: var(--font-satoshi), sans-serif;
+    font-size: clamp(26px, 3.2vw, 44px);
+    font-weight: 700;
+    line-height: 1.04;
+    letter-spacing: -0.01em;
+    color: #eef7fc;
+    text-wrap: balance;
+  }
+  .pb-body {
+    margin-top: 12px;
+    font-size: 14.5px;
+    line-height: 1.55;
+    color: #b9d2e2;
+    max-width: 38ch;
+  }
+  .pb--bc .pb-body {
+    margin-inline: auto;
+  }
+  .pb-stat {
+    display: inline-block;
+    margin-top: 14px;
+    padding: 5px 11px;
+    border: 1px solid rgba(41, 194, 238, 0.45);
+    font-size: 11.5px;
+    letter-spacing: 0.1em;
+    color: #bfe9ff;
+  }
+  .pb-cta {
+    display: inline-block;
+    margin-top: 18px;
+    padding: 11px 18px;
+    border: 1px solid rgba(127, 216, 245, 0.55);
+    background: rgba(10, 18, 27, 0.6);
+    color: #e8f4fb;
+    font-family: var(--font-satoshi), sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: border-color 0.2s, background 0.2s, transform 0.2s var(--ease);
+  }
+  .pb-cta:hover,
+  .pb-cta:focus-visible {
+    border-color: #29c2ee;
+    background: rgba(41, 194, 238, 0.12);
+    transform: translateY(-2px);
+  }
+  .pb-cue {
+    display: block;
+    margin-top: 22px;
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    color: #6b8798;
+  }
+  @media (max-width: 760px) {
+    /* phones: the vessel owns the centre — every beat speaks from the base */
+    .pbeat {
+      max-width: min(92vw, 420px);
+      text-align: center;
+      text-shadow: 0 1px 14px rgba(5, 8, 12, 0.9), 0 0 30px rgba(5, 8, 12, 0.7);
+    }
+    .pb--left,
+    .pb--right,
+    .pb--tl,
+    .pb--bc {
+      left: 50%;
+      right: auto;
+      top: auto;
+      bottom: clamp(20px, 6vh, 64px);
+      translate: -50% 0;
+    }
+    .pb-body {
+      margin-inline: auto;
+    }
+    .pb-h {
+      font-size: clamp(22px, 6.4vw, 30px);
+    }
+    .xlabel {
+      width: 190px;
+    }
+  }
+
+  /* ── Phase 2: interactive explode labels (ride the lifted cartridges) ──
+     NOTE: the show/hide path deliberately has NO transitions — a transition
+     from a hidden initial state freezes in headless captures and turns
+     verification blind. Transitions live only on user-initiated states
+     (hover, card expand). */
+  .xlabel {
+    position: relative;
+    width: 236px;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    font-family: var(--font-mono), monospace;
+  }
+  .xlabel.on {
+    opacity: 1;
+    visibility: visible;
+  }
+  .xlabel.on .xl-tag,
+  .xlabel.on .xl-card {
+    pointer-events: auto;
+  }
+  .xl-leader {
+    position: absolute;
+    left: -48px;
+    top: 15px;
+    width: 42px;
+    height: 1.5px;
+    background: #7fd8f5;
+  }
+  .xl-tag {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    background: rgba(10, 18, 27, 0.88);
+    border: 1px solid rgba(127, 216, 245, 0.5);
+    color: #e8f4fb;
+    font: inherit;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-align: left;
+    padding: 7px 10px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .xl-tag:hover,
+  .xl-tag:focus-visible {
+    border-color: #29c2ee;
+  }
+  .xl-tag b {
+    color: #29c2ee;
+  }
+  .xl-plus {
+    margin-left: auto;
+    font-style: normal;
+    color: #7fd8f5;
+  }
+  .xl-card {
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    padding: 0 10px;
+    background: rgba(10, 18, 27, 0.92);
+    border: 1px solid rgba(127, 216, 245, 0.25);
+    border-top: none;
+    transition: max-height 0.4s var(--ease), opacity 0.3s, padding 0.3s;
+  }
+  .xlabel.is-open .xl-card {
+    max-height: 260px;
+    opacity: 1;
+    padding: 10px;
+  }
+  .xl-card dl {
+    display: grid;
+    gap: 7px;
+    margin: 0;
+  }
+  .xl-card dt {
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    color: #7fd8f5;
+  }
+  .xl-card dd {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: #d7e9f0;
+  }
+  .xl-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 10px;
+  }
+  .xl-chips span {
+    font-size: 10px;
+    padding: 2px 8px;
+    border: 1px solid rgba(41, 194, 238, 0.4);
+    border-radius: 999px;
+    color: #bfe9ff;
+  }
+
+  /* Phase 2 — interior sheets run OPEN at the bottom so the document reads
+     as continuing; only the final CTA sheet closes its frame (critique #12) */
+  .sheet--open .sheet-frame {
+    border-bottom-color: transparent;
+  }
+  .sheet--open .sheet-frame::before {
+    border-bottom: none;
+  }
+  /* Plate 04's Section A–A stands alone now that the stage story lives in
+     the journey beats */
+  .flow-stage--solo {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+  .flow-stage--solo .flow-svg {
+    max-width: 430px;
+  }
+
+  /* the plate's own CTA, stamped like an approval mark */
+  .jd-stamp-cta {
+    display: inline-block;
+    margin-top: 14px;
+    padding: 8px 14px;
+    border: 1.6px solid #b4452f;
+    color: #b4452f;
+    font-family: var(--font-mono), monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-decoration: none;
+    background: rgba(245, 241, 230, 0.6);
+    transform: rotate(-1.2deg);
+    transition: background 0.2s, color 0.2s;
+  }
+  .jd-stamp-cta:hover,
+  .jd-stamp-cta:focus-visible {
+    background: #b4452f;
+    color: #f5f1e6;
+  }
+
   /* ONE film grain over the whole drafting space — GL and DOM share the same
      stock because this overlay sits above both. Desaturated: colour noise
      reads as confetti on the bright chrome speculars. */
@@ -652,7 +930,9 @@
     background: #05080c;
     display: flex;
     justify-content: center;
-    padding: clamp(40px, 7vw, 96px) clamp(14px, 4vw, 40px);
+    /* tight vertical rhythm — the next sheet always peeks, so no section
+       reads as the end of the site (Phase 2, critique #12) */
+    padding: clamp(18px, 3vw, 40px) clamp(14px, 4vw, 40px);
     scroll-margin-top: 116px;
   }
   .sheet-frame {

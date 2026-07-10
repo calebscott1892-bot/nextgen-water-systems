@@ -48,12 +48,32 @@ const hidden = (k: string) => HIDE.includes(k);
 const ss = (x: number, a: number, b: number) => THREE.MathUtils.smoothstep(x, a, b);
 const lerp = THREE.MathUtils.lerp;
 
-/* ---- the three vessels (x spacing 1.9; sump r .62, head r .74) ---- */
+/* ---- the three vessels (x spacing 1.9; sump r .62, head r .74) ----
+   spec fields feed the interactive explode cards (Phase 2) */
 const VESSELS = [
-  { x: -1.9, n: "01", title: "Sediment", sub: "10/5/1µm 3-layer*", cart: "#e8ecee", cartMetal: 0.05, cartRough: 0.85 },
-  { x: 0.0, n: "02", title: "KDF 55/85 + carbon", sub: "heavy metals · chlorine*", cart: "#a97142", cartMetal: 0.65, cartRough: 0.5 },
-  { x: 1.9, n: "03", title: "Limescale carbon", sub: "scale · taste · 1µm*", cart: "#232c33", cartMetal: 0.1, cartRough: 0.7 },
+  {
+    x: -1.9, n: "01", title: "Sediment", sub: "10/5/1µm 3-layer*",
+    cart: "#e8ecee", cartMetal: 0.05, cartRough: 0.85,
+    media: "Graded polypropylene · 3 layers", rating: "10 / 5 / 1 µm*", service: "~6 months*",
+    removes: ["Grit", "Rust", "Silt"],
+  },
+  {
+    x: 0.0, n: "02", title: "KDF 55/85 + carbon", sub: "heavy metals · chlorine*",
+    cart: "#a97142", cartMetal: 0.65, cartRough: 0.5,
+    media: "Copper-zinc granules + coconut carbon", rating: "redox bed", service: "up to 18 months*",
+    removes: ["Heavy metals", "Chlorine", "Bacteria control*"],
+  },
+  {
+    x: 1.9, n: "03", title: "Limescale carbon", sub: "scale · taste · 1µm*",
+    cart: "#232c33", cartMetal: 0.1, cartRough: 0.7,
+    media: "Scale-reduction media + carbon", rating: "1 µm polish", service: "~12 months*",
+    removes: ["Scale formation*", "Taste", "Odour"],
+  },
 ] as const;
+
+/** where each vessel's water-run beat parks (mid interior window) — the
+ *  click-a-vessel scroll target */
+const VESSEL_BEAT_P = [0.5, 0.61, 0.7] as const;
 
 /** per-vessel interior windows — the camera parks at each vessel while its
  *  sump ghosts. Shared by the assembly, the lights and the camera breath. */
@@ -196,7 +216,7 @@ const CAM: Key[] = [
   { p: 0.0, pos: [3.4, -0.5, 8.6], tgt: [0, 0.15, 0] }, // hero ¾
   { p: 0.06, pos: [5.2, 1.0, 6.6], tgt: [0, 0, 0] }, // drift around
   { p: 0.1, pos: [0, 0.12, 8.8], tgt: [0, 0.12, 0] }, // front dock (trace)
-  { p: 0.33, pos: [0, 0.12, 8.8], tgt: [0, 0.12, 0] }, // hold dock until the plate exits
+  { p: 0.36, pos: [0, 0.12, 8.8], tgt: [0, 0.12, 0] }, // hold dock until the plate exits (widened hold, Phase 2)
   { p: 0.4, pos: [0, 0.1, 6.8], tgt: [0, 0, 0] }, // re-frame, push in
   { p: 0.44, pos: [-1.9, 0.05, 4.6], tgt: [-1.9, -0.1, 0] }, // arrive V1
   { p: 0.55, pos: [-1.9, -0.05, 4.1], tgt: [-1.9, -0.15, 0] }, // slow push through V1
@@ -210,23 +230,45 @@ const CAM: Key[] = [
   { p: 1.0, pos: [2.8, 0.15, 8.8], tgt: [0, 0.12, 0] }, // settle front, reassembled
 ];
 
-function seg(p: number): [Key, Key] {
-  for (let i = 0; i < CAM.length - 1; i++) if (p <= CAM[i + 1].p) return [CAM[i], CAM[i + 1]];
-  return [CAM[CAM.length - 2], CAM[CAM.length - 1]];
+function segIndex(p: number): number {
+  for (let i = 0; i < CAM.length - 1; i++) if (p <= CAM[i + 1].p) return i;
+  return CAM.length - 2;
+}
+
+/** Catmull-Rom through the rail keys (uniform basis), evaluated per segment so
+ *  every key still lands at its EXACT p. Hold segments (identical knots) stay
+ *  put, and their zero-length neighbours naturally ease the tangents to rest —
+ *  kills the velocity kink at 9 of 11 keys that piecewise lerp had. */
+function crAxis(a: number, b: number, c: number, d: number, t: number): number {
+  return 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (-a + 3 * b - 3 * c + d) * t * t * t);
+}
+function sampleRail(sel: "pos" | "tgt", i: number, t: number, out: THREE.Vector3) {
+  const pick = (j: number) => CAM[Math.min(Math.max(j, 0), CAM.length - 1)][sel];
+  const P0 = pick(i - 1), P1 = pick(i), P2 = pick(i + 1), P3 = pick(i + 2);
+  const len = Math.hypot(P2[0] - P1[0], P2[1] - P1[1], P2[2] - P1[2]);
+  if (len < 1e-5) {
+    out.set(P1[0], P1[1], P1[2]); // hold — the camera is parked
+    return;
+  }
+  out.set(
+    crAxis(P0[0], P1[0], P2[0], P3[0], t),
+    crAxis(P0[1], P1[1], P2[1], P3[1], t),
+    crAxis(P0[2], P1[2], P2[2], P3[2], t),
+  );
 }
 
 function Rig({ progress, sheetRatio }: { progress: MutableRefObject<number>; sheetRatio?: MutableRefObject<number> }) {
   const { camera } = useThree();
   const tgt = useRef(new THREE.Vector3(0, 0.12, 0));
-  useFrame(() => {
+  useFrame((state) => {
     const p = progress.current;
-    const [a, b] = seg(p);
+    const i = segIndex(p);
+    const a = CAM[i], b = CAM[i + 1];
     const t = THREE.MathUtils.clamp((p - a.p) / (b.p - a.p || 1), 0, 1);
-    // linear through interior keys (scrub already smooths); cushion only the
-    // dock arrival and the final settle — kills the velocity hitch at every key
+    // cushion the dock arrival and the final settle
     const e = b.p === 0.1 || b.p === 1.0 ? ss(t, 0, 1) : t;
-    camera.position.set(lerp(a.pos[0], b.pos[0], e), lerp(a.pos[1], b.pos[1], e), lerp(a.pos[2], b.pos[2], e));
-    tgt.current.set(lerp(a.tgt[0], b.tgt[0], e), lerp(a.tgt[1], b.tgt[1], e), lerp(a.tgt[2], b.tgt[2], e));
+    sampleRail("pos", i, e, camera.position);
+    sampleRail("tgt", i, e, tgt.current);
     // portrait rescue — the hero pose frames all three vessels only above
     // ~1.15 aspect; on narrow screens pull back + widen the lens so the whole
     // assembly stays in frame. MUST be gone by p=0.10: the dock's ink
@@ -239,15 +281,20 @@ function Rig({ progress, sheetRatio }: { progress: MutableRefObject<number>; she
       camera.position.x *= 1 - heroW * 0.3;
       camera.position.y += heroW * 0.2;
     }
-    camera.up.set(0, 1, 0);
-    camera.lookAt(tgt.current);
-    // subtle dolly-zoom "breath" — the lens pushes in at each vessel visit
-    const fov = 38 - interiorMax(p) * 5 + heroW * 10;
     // dock registration zoom (Phase 1): the canvas is full-bleed but the ink
     // is drawn at SHEET scale — camera.zoom scales the NDC image uniformly
     // about centre (sheet centre == canvas centre), which is an EXACT remap
     // of the calibrated projection. Engages with the dock, releases with reg.
-    const zoomW = ss(p, 0.04, 0.1) * (1 - ss(p, 0.33, 0.42));
+    const zoomW = ss(p, 0.04, 0.1) * (1 - ss(p, 0.36, 0.44));
+    // pointer parallax (Phase 2) — the suspended machine answers the cursor
+    // everywhere except the trace dock, where registration owns the frame
+    const par = 1 - zoomW;
+    camera.position.x += state.pointer.x * 0.16 * par;
+    camera.position.y += state.pointer.y * 0.09 * par;
+    camera.up.set(0, 1, 0);
+    camera.lookAt(tgt.current);
+    // subtle dolly-zoom "breath" — the lens pushes in at each vessel visit
+    const fov = 38 - interiorMax(p) * 5 + heroW * 10;
     const zoom = lerp(1, Math.min(sheetRatio?.current ?? 1, 1), zoomW);
     if (Math.abs(cam.fov - fov) > 0.01 || Math.abs(cam.zoom - zoom) > 0.001) {
       cam.fov = fov;
@@ -273,6 +320,10 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
   const actionGroups = useRef<(THREE.Group | null)[]>([]);
   const sparkRefs = useRef<(THREE.Mesh | null)[]>([]);
   const [labelsOn, setLabelsOn] = useState(false);
+  // Phase 2 interactivity: hovered vessel (ring brighten + tooltip) and the
+  // explode card currently expanded
+  const [hover, setHover] = useState<number | null>(null);
+  const [openCard, setOpenCard] = useState<number | null>(null);
 
   // procedural micro-roughness — real steel is never a perfect mirror. Fine
   // grayscale noise + faint vertical brush streaks break the reflection into
@@ -420,16 +471,24 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
     const p = progress.current;
     const g = assy.current;
     const dock = ss(p, 0.04, 0.1); // settled to dock (drift stops BEFORE the trace)
-    const reg = ss(p, 0.33, 0.42); // dock framing → journey framing (plate exited)
+    const reg = ss(p, 0.36, 0.44); // dock framing → journey framing (plate exited; widened hold)
     const w = interiorWindows(p);
     const through = Math.max(...w);
+    // Phase 2 — genuine time-staggered deconstruction: heads lift first (in a
+    // slight wave), cartridges follow per-vessel; reassembly mirrors it (carts
+    // seat, then heads close) as the transition into the settle
+    const reformCarts = ss(p, 0.92, 0.96);
+    const reformHeads = ss(p, 0.94, 0.99);
     const reform = ss(p, 0.92, 0.99);
-    const explode = ss(p, 0.76, 0.9) * (1 - reform);
+    const explode = ss(p, 0.76, 0.9) * (1 - reform); // overall scalar (opacities/labels)
 
     // hysteresis: on at 0.5, off at 0.38 — parking the scrub near a single
     // threshold used to strobe the labels against their 0.45s CSS transition
     const wantLabels = labelsOn ? explode > 0.38 : explode > 0.5;
-    if (wantLabels !== labelsOn) setLabelsOn(wantLabels);
+    if (wantLabels !== labelsOn) {
+      setLabelsOn(wantLabels);
+      if (!wantLabels) setOpenCard(null); // cards never linger past the beat
+    }
 
     if (g) {
       // dock registration: the SVG plate draws the assembly at ~0.78 scale,
@@ -481,12 +540,15 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
         });
       }
       const rm = ringMats.current[i];
-      if (rm) rm.emissiveIntensity = lerp(1.1, 0.15, through);
-      // service explode: heads lift off, cartridges rise out of the sumps
+      if (rm) rm.emissiveIntensity = hover === i && p > 0.33 ? 2.2 : lerp(1.1, 0.15, through);
+      // service explode, staggered in TIME: heads lead in a wave, cartridges
+      // follow each a beat later — parts stay suspended for the whole dwell
+      const headLift = ss(p, 0.76 + i * 0.012, 0.84 + i * 0.012) * (1 - reformHeads);
+      const cartLift = ss(p, 0.79 + i * 0.015, 0.9) * (1 - reformCarts);
       const hg = headGroups.current[i];
-      if (hg) hg.position.y = explode * 1.15;
+      if (hg) hg.position.y = headLift * 1.15;
       const cg = cartGroups.current[i];
-      if (cg) cg.position.y = explode * (0.95 + i * 0.12);
+      if (cg) cg.position.y = cartLift * (0.95 + i * 0.12);
     }
 
     // KDF redox sparks — brief electron-transfer flashes on the granule bed
@@ -546,7 +608,31 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
       )}
 
       {VESSELS.map((v, i) => (
-        <group key={v.n} position={[v.x, 0, 0]}>
+        <group
+          key={v.n}
+          position={[v.x, 0, 0]}
+          // Phase 2 — the machine answers touch: hover brightens this vessel's
+          // ring + raises its label; click flies the scroll to its beat.
+          // Gated past the dock so nothing fights the ink trace.
+          onPointerOver={(e) => {
+            if (progress.current < 0.33) return;
+            e.stopPropagation();
+            setHover(i);
+            document.body.style.cursor = "pointer";
+          }}
+          onPointerOut={() => {
+            setHover((h) => (h === i ? null : h));
+            document.body.style.cursor = "";
+          }}
+          onClick={(e) => {
+            if (progress.current < 0.33 || progress.current > 0.76) return;
+            e.stopPropagation();
+            const el = document.getElementById("drawing");
+            if (!el) return;
+            const y = el.offsetTop + VESSEL_BEAT_P[i] * (el.offsetHeight - window.innerHeight);
+            window.scrollTo({ top: y, behavior: "smooth" });
+          }}
+        >
           {/* head / cap (lifts on the service explode) */}
           {!hidden("caps") && (
             <group
@@ -644,11 +730,49 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
                   opacity={0}
                 />
               </mesh>
-              <Html position={[0, -2.15, 0]} center zIndexRange={[12, 0]} className="stage-label-wrap">
-                <div className={`stage-label ${labelsOn ? "on" : ""}`.trim()}>
-                  <span className="sl-n">{v.n}</span>
-                  <span className="sl-t">{v.title}</span>
-                  <span className="sl-s">{v.sub}</span>
+              {/* Phase 2 — the label RIDES the lifted cartridge and is a real
+                  interactive text space: leader draws → tag letters → the tag
+                  expands into a spec card on click/keyboard */}
+              <Html position={[0.55, 0.2, 0.4]} zIndexRange={[30, 10]} className="xlabel-wrap">
+                <div
+                  className={`xlabel ${labelsOn || (hover === i && progress.current > 0.33) ? "on" : ""} ${openCard === i ? "is-open" : ""}`.trim()}
+                  aria-hidden={!labelsOn && hover !== i}
+                >
+                  <span className="xl-leader" aria-hidden="true" />
+                  <button
+                    type="button"
+                    className="xl-tag"
+                    tabIndex={labelsOn ? 0 : -1}
+                    aria-expanded={openCard === i}
+                    onClick={() => setOpenCard(openCard === i ? null : i)}
+                  >
+                    <b>{v.n}</b>
+                    <span>{v.title}</span>
+                    <i className="xl-plus" aria-hidden="true">
+                      {openCard === i ? "–" : "+"}
+                    </i>
+                  </button>
+                  <div className="xl-card">
+                    <dl>
+                      <div>
+                        <dt>MEDIA</dt>
+                        <dd>{v.media}</dd>
+                      </div>
+                      <div>
+                        <dt>RATING</dt>
+                        <dd>{v.rating}</dd>
+                      </div>
+                      <div>
+                        <dt>SERVICE</dt>
+                        <dd>{v.service}</dd>
+                      </div>
+                    </dl>
+                    <div className="xl-chips">
+                      {v.removes.map((r) => (
+                        <span key={r}>{r}</span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </Html>
             </group>
