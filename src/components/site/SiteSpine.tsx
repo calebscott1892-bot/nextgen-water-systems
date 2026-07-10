@@ -71,7 +71,7 @@ function ProblemPlate() {
             smell, and fine sediment you only notice once it’s in the glass. None of it changes how the water looks.{" "}
             <span className="ink-underline">Clear isn’t the same as clean.</span>
           </p>
-          <p className="sheet-fig">DETAIL A · NOT TO SCALE · presence and levels confirmed by your free in-home test*</p>
+          <p className="sheet-fig">DETAIL A · SCALE 4:1 · presence and levels confirmed by your free in-home test*</p>
         </div>
         <div className="detail-wrap">
           <svg viewBox="0 0 420 420" className="detail-svg" aria-hidden="true">
@@ -86,9 +86,25 @@ function ProblemPlate() {
             })}
           </svg>
           <div className="detail-callouts">
-            {items.map((it) => (
-              <Callout key={it.n} n={it.n} label={it.label} note={it.note} className={`dc dc--${it.n}`} />
-            ))}
+            {items.map((it) => {
+              // anchor each callout from the SAME angle as its SVG leader so
+              // text can never pile up — leader tips at r≈41%, callouts at 52%
+              const rad = (it.a * Math.PI) / 180;
+              const dx = Math.cos(rad);
+              const dy = Math.sin(rad);
+              const tx = dx > 0.35 ? "0%" : dx < -0.35 ? "-100%" : "-50%";
+              const ty = dy > 0.35 ? "0%" : dy < -0.35 ? "-100%" : "-50%";
+              return (
+                <Callout
+                  key={it.n}
+                  n={it.n}
+                  label={it.label}
+                  note={it.note}
+                  className="dc"
+                  style={{ left: `${50 + dx * 52}%`, top: `${50 + dy * 52}%`, transform: `translate(${tx}, ${ty})` }}
+                />
+              );
+            })}
           </div>
         </div>
       </div>
@@ -233,6 +249,15 @@ function FlowTestPlate() {
             pathLength={1}
             fill="none"
           />
+          {/* port labels (the arrows alone left IN/OUT ambiguous) */}
+          <rect x="290" y="130" width="32" height="18" fill="#f5f1e6" opacity="0.92" />
+          <text x="306" y="143" className="flow-io" textAnchor="middle">
+            IN
+          </text>
+          <rect x="696" y="130" width="42" height="18" fill="#f5f1e6" opacity="0.92" />
+          <text x="717" y="143" className="flow-io" textAnchor="middle">
+            OUT
+          </text>
           {/* section labels */}
           <text x={SEC.wallOL - 12} y="460" className="flow-dim" textAnchor="middle" transform={`rotate(-90 ${SEC.wallOL - 12} 460)`}>
             ANNULUS — RAW IN
@@ -403,7 +428,7 @@ function BenefitsPlate() {
         </p>
       </div>
       <div className="house-wrap">
-        <svg viewBox="0 0 900 300" className="house-svg" aria-hidden="true">
+        <svg viewBox="0 0 900 320" className="house-svg" aria-hidden="true">
           <path className="lw-draw lw-hair2" d="M40 280 V120 L450 30 L860 120 V280" pathLength={1} />
           <path className="lw-draw lw-hair2" d="M40 280 H860 M300 280 V160 H600 V280 M300 200 H600 M450 30 V160" pathLength={1} />
           <rect className="lw-draw lw-heavy2" x="60" y="210" width="34" height="70" pathLength={1} />
@@ -446,7 +471,9 @@ function ProcessPlate() {
           </li>
         ))}
       </ol>
-      <p className="process-next">NEXT: BOOK YOUR FREE TEST ↓</p>
+      <a className="process-next" href="#plate-cta">
+        NEXT: BOOK YOUR FREE TEST ↓
+      </a>
     </Plate>
   );
 }
@@ -467,13 +494,21 @@ function CtaPlate() {
           and shows you exactly what the NGW-01 would change.
         </p>
         <div className="cta-actions">
-          <Button variant="primary" href="#book">
+          {/* mailto until a real booking form lands (redesign Phase 5) —
+              the old href="#book" pointed at an anchor that never existed */}
+          <Button
+            variant="primary"
+            href={`mailto:${CONTACT.email}?subject=${encodeURIComponent("Free water test — booking request")}&body=${encodeURIComponent("Hi Next Gen,\n\nI'd like to book a free in-home water test.\n\nSuburb:\nBest contact number:\nPreferred day:\n\nThanks.")}`}
+          >
             Book your free water test
           </Button>
           <Button variant="ghost" href={`tel:${CONTACT.phone.replace(/\s/g, "")}`}>
-            Call {CONTACT.phone}*
+            Call {CONTACT.phone}
           </Button>
         </div>
+        <p className="sheet-fig" style={{ marginTop: 10 }}>
+          * phone number is a placeholder pending the business line
+        </p>
       </div>
     </Plate>
   );

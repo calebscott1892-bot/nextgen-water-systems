@@ -103,6 +103,7 @@ export function LivingDrawing() {
     const construct = q<SVGGElement>(".jd-construct");
     const col = q<SVGGElement>(".jd-col");
     const dimG = q<SVGGElement>(".jd-dim");
+    const dimLabel = q<SVGGElement>(".jd-dim-label");
     const inkG = q<SVGGElement>(".jd-ink");
     const revRows = Array.from(root.querySelectorAll<HTMLElement>(".jd-rev-row"));
     const furniture = [".jd-note", ".jd-titleblock", ".jd-bomlist", ".jd-revtable"]
@@ -118,6 +119,7 @@ export function LivingDrawing() {
       if (beds) beds.style.opacity = "1";
       if (bom) bom.style.opacity = "1";
       if (dimG) dimG.style.opacity = "1";
+      if (dimLabel) dimLabel.style.opacity = "1";
       if (construct) construct.style.opacity = "0.16";
       if (inkG) inkG.style.color = "#15324a";
       if (tip) tip.style.opacity = "0";
@@ -130,6 +132,7 @@ export function LivingDrawing() {
       gsap.set(paper, { opacity: 0 });
       gsap.set(shade, { opacity: webgl ? 0 : 1 }); // 3D chrome replaces the SVG still
       gsap.set([beds, bom, dimG], { opacity: 0 });
+      gsap.set(dimLabel, { opacity: 0 });
       gsap.set(construct, { opacity: 1 });
       gsap.set(furniture, { opacity: 0 });
       gsap.set(inkG, { color: "#f4f9fc" }); // white ink, traced over the chrome
@@ -169,6 +172,8 @@ export function LivingDrawing() {
       tl.to(beds, { opacity: 1, duration: 0.12 }, 0.6);
       tl.to(dimG, { opacity: 1, duration: 0.02 }, 0.66);
       dim.forEach((p, i) => tl.to(p, { strokeDashoffset: 0, duration: 0.06, ease: "power2.out" }, 0.66 + i * 0.03));
+      // the dimension VALUE letters in only after its lines exist
+      tl.to(dimLabel, { opacity: 1, duration: 0.04 }, 0.72);
       tl.to(bom, { opacity: 1, duration: 0.1 }, 0.7);
       // 6 — revision rows accrue (the progress spine, driven from the data)
       revRows.forEach((r, i) => tl.to(r, { opacity: 1, duration: 0.04 }, REVISIONS[i]?.at ?? 0.5));
@@ -392,17 +397,22 @@ export function LivingDrawing() {
                   strokeWidth="1.3"
                   vectorEffect="non-scaling-stroke"
                 />
-                <rect x="498" y="623" width="84" height="24" fill="url(#vellum)" />
-                <text x="540" y="640" className="jd-dim-t" textAnchor="middle">
-                  1120 mm*
-                </text>
+                {/* the VALUE arrives only after its lines finish drawing —
+                    a draughtsperson never letters before the dimension exists */}
+                <g className="jd-dim-label">
+                  <rect x="498" y="623" width="84" height="24" fill="url(#vellum)" />
+                  <text x="540" y="640" className="jd-dim-t" textAnchor="middle">
+                    1120 mm*
+                  </text>
+                </g>
               </g>
 
-              {/* BOM balloons — above each vessel head, leader dropping to the cap */}
+              {/* BOM balloons — above each vessel head, leader landing ON the cap face */}
               <g className="jd-bom">
                 {ASSEMBLY_BALLOONS.map((b) => (
                   <g key={b.n}>
-                    <line x1={b.x} y1={b.y + 14} x2={b.x} y2={222} stroke="#2f6e9c" strokeWidth="0.8" />
+                    <line x1={b.x} y1={b.y + 14} x2={b.x} y2={240} stroke="#2f6e9c" strokeWidth="0.8" />
+                    <circle cx={b.x} cy={240} r="2" fill="#2f6e9c" />
                     <circle cx={b.x} cy={b.y} r="13" fill="url(#vellum)" stroke="#0f2c3b" strokeWidth="1.2" />
                     <text x={b.x} y={b.y + 4} className="jd-balloon-t" textAnchor="middle">
                       {b.n}

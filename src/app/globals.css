@@ -920,22 +920,26 @@
   }
   .detail-callouts .dc {
     position: absolute;
+    max-width: 17ch;
+    background: rgba(245, 241, 230, 0.92);
+    padding: 3px 8px;
+    border-radius: 2px;
   }
-  .dc--01 {
-    top: 16%;
-    right: -4%;
-  }
-  .dc--02 {
-    bottom: 22%;
-    right: -6%;
-  }
-  .dc--03 {
-    bottom: 4%;
-    left: 30%;
-  }
-  .dc--04 {
-    top: 22%;
-    left: -6%;
+  /* the 760–1080px band is the collision zone — fall back to a flowed list
+     well before the phone breakpoint */
+  @media (max-width: 1080px) {
+    .detail-callouts {
+      display: grid;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .detail-callouts .dc {
+      position: static;
+      transform: none !important;
+      max-width: none;
+      background: none;
+      padding: 0;
+    }
   }
 
   /* PLATE 04 — flow test */
@@ -1040,6 +1044,8 @@
   }
   .schedule {
     width: 100%;
+    /* reserve headroom so the rotated stamp never prints across the header */
+    margin-top: 18px;
     border-collapse: collapse;
     border: 1px solid #0f2c3b;
     font-family: var(--font-mono), monospace;
@@ -1205,12 +1211,20 @@
     color: #3a505f;
   }
   .process-next {
+    display: block;
     margin-top: clamp(22px, 3vw, 40px);
     text-align: right;
     font-family: var(--font-mono), monospace;
     font-size: 12px;
     letter-spacing: 0.14em;
     color: #1f5c8a;
+    text-decoration: none;
+  }
+  a.process-next:hover,
+  a.process-next:focus-visible {
+    color: #29c2ee;
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
 
   /* PLATE 09 — CTA */
@@ -1472,9 +1486,10 @@
     color: #6a8194;
   }
   .tbf-stamp {
-    position: absolute;
-    top: clamp(20px, 3vw, 40px);
-    right: clamp(20px, 3vw, 40px);
+    /* in flow (right-aligned) — absolute top/right printed over the grid cells */
+    display: block;
+    width: fit-content;
+    margin: 16px 0 4px auto;
     font-size: 11px;
     letter-spacing: 0.1em;
     color: #b4452f;
@@ -1595,14 +1610,7 @@
       max-width: 320px;
       margin: 0 auto;
     }
-    .detail-callouts {
-      display: grid;
-      gap: 12px;
-      margin-top: 20px;
-    }
-    .detail-callouts .dc {
-      position: static;
-    }
+    /* (detail callouts already flow statically from 1080px — see above) */
 
     /* flow column smaller; schedule scrolls horizontally */
     .flow-svg {
@@ -1625,26 +1633,6 @@
       font-size: clamp(30px, 10vw, 56px);
     }
 
-    /* chrome collapses to a compact chip */
-    .chrome-rev {
-      display: none;
-    }
-    .chrome {
-      right: 8px;
-      bottom: 8px;
-    }
-    .chrome-tb {
-      width: auto;
-    }
-    .chrome-tb-co,
-    .chrome-tb-view,
-    .chrome-tb-stamp {
-      display: none;
-    }
-    .chrome-tb-cell {
-      font-size: 9px;
-    }
-
     .tbf-grid {
       grid-template-columns: 1fr 1fr;
     }
@@ -1656,6 +1644,29 @@
     }
     .tbf-rev-row {
       grid-template-columns: 1.6em 2em 1fr;
+    }
+  }
+  /* the fixed chrome chip starts colliding with plate content well before
+     phones — collapse it to the compact chip from 1500px down */
+  @media (max-width: 1500px) {
+    .chrome-rev {
+      display: none;
+    }
+    .chrome {
+      right: 8px;
+      bottom: 8px;
+    }
+    .chrome-tb {
+      width: auto;
+      background: rgba(10, 18, 27, 0.92);
+    }
+    .chrome-tb-co,
+    .chrome-tb-view,
+    .chrome-tb-stamp {
+      display: none;
+    }
+    .chrome-tb-cell {
+      font-size: 9px;
     }
   }
   .lw {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { gsap, ScrollTrigger } from "@/lib/gsap";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 
@@ -107,15 +107,18 @@ export function Callout({
   value,
   note,
   className = "",
+  style,
 }: {
   n: string;
   label: string;
   value?: string;
   note?: string;
   className?: string;
+  /** anchor position when the callout is placed ON a figure (Plate 03) */
+  style?: CSSProperties;
 }) {
   return (
-    <div className={`callout ${className}`.trim()}>
+    <div className={`callout ${className}`.trim()} style={style}>
       <span className="callout-balloon">{n}</span>
       <span className="callout-lead" aria-hidden="true" />
       <span className="callout-text">

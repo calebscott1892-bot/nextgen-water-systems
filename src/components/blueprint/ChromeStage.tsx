@@ -357,7 +357,9 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
     const reform = ss(p, 0.92, 0.99);
     const explode = ss(p, 0.76, 0.9) * (1 - reform);
 
-    const wantLabels = explode > 0.45;
+    // hysteresis: on at 0.5, off at 0.38 — parking the scrub near a single
+    // threshold used to strobe the labels against their 0.45s CSS transition
+    const wantLabels = labelsOn ? explode > 0.38 : explode > 0.5;
     if (wantLabels !== labelsOn) setLabelsOn(wantLabels);
 
     if (g) {
