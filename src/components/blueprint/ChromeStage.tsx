@@ -1,8 +1,8 @@
 "use client";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Environment, ContactShadows, Html } from "@react-three/drei";
-import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
+import { Environment, ContactShadows, Html, Lightformer } from "@react-three/drei";
+import { EffectComposer, Bloom, Vignette, ChromaticAberration } from "@react-three/postprocessing";
 import { useMemo, useRef, useState, type MutableRefObject } from "react";
 import * as THREE from "three";
 import { asset } from "@/lib/asset";
@@ -59,9 +59,10 @@ const interiorMax = (p: number) => Math.max(...interiorWindows(p));
    NOTE (review-confirmed): per-material envMapIntensity is a no-op under
    scene.environment (three r163+) — env strength comes solely from
    scene.environmentIntensity (<Environment> prop, scrubbed in JourneyLights). */
-const STEEL = { color: "#b1bcc6", metalness: 1, roughness: 0.26, clearcoat: 1, clearcoatRoughness: 0.09 } as const;
+const STEEL = { color: "#b1bcc6", metalness: 1, roughness: 0.26, clearcoat: 1, clearcoatRoughness: 0.09, anisotropy: 0.4, anisotropyRotation: Math.PI / 2 } as const;
 const CAPS = { color: "#79848e", metalness: 1, roughness: 0.3, clearcoat: 0.6, clearcoatRoughness: 0.22 } as const;
 const MACHINED = { color: "#2b333b", metalness: 0.95, roughness: 0.42 } as const;
+const CA_OFFSET = new THREE.Vector2(0.0006, 0.0004);
 
 /** DEV forensic (?ngdbgray): raycast from screen centre and log what's actually
  *  in front of the camera — for diagnosing "mystery surface" frames. */
@@ -684,7 +685,15 @@ export default function ChromeStage({ progress, active }: Props) {
       {/* Studio HDRI softbox reflections — SELF-HOSTED (public/hdri) so the 3D
           never depends on a third-party CDN. The SVG plate is the no-WebGL /
           reduced-motion fallback. */}
-      <Environment files={asset("/hdri/studio_small_03_1k.hdr")} environmentIntensity={0.82} />
+      <Environment files={asset("/hdri/studio_small_03_1k.hdr")} environmentIntensity={0.82}>
+        {/* in-scene softbox accents composited over the HDRI: two tall strips give
+            the sump flanks continuous vertical highlights (the anisotropy stretches
+            them further), one dim warm top-light rounds the head shoulders. All
+            baked into the env map, so the window-dive env scrub dims them too. */}
+        <Lightformer form="rect" position={[-6, 1, 4]} rotation-y={Math.PI / 2.6} scale={[0.9, 6.5, 1]} intensity={0.55} color="#eaf3fa" />
+        <Lightformer form="rect" position={[6, 1, 4]} rotation-y={-Math.PI / 2.6} scale={[0.9, 6.5, 1]} intensity={0.55} color="#eaf3fa" />
+        <Lightformer form="rect" position={[0, 8, 1]} rotation-x={-Math.PI / 2} scale={[9, 4, 1]} intensity={0.3} color="#fff2e2" />
+      </Environment>
 
       <JourneyLights progress={progress} />
 
@@ -699,6 +708,8 @@ export default function ChromeStage({ progress, active }: Props) {
       {!hidden("post") && (
         <EffectComposer>
           <Bloom intensity={0.42} luminanceThreshold={0.82} luminanceSmoothing={0.28} mipmapBlur />
+          {/* lens fringe kept to the frame edges — dead-centre chrome stays clinically sharp */}
+          <ChromaticAberration offset={CA_OFFSET} radialModulation modulationOffset={0.3} />
           <Vignette eskil={false} offset={0.26} darkness={0.55} />
         </EffectComposer>
       )}
