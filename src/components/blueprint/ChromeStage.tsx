@@ -340,6 +340,8 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
   // Phase 3: printed label wraps (ghost with their sump) + cartridge end caps
   const labelMatRefs = useRef<(THREE.MeshStandardMaterial | null)[]>([]);
   const capMatRefs = useRef<(THREE.MeshStandardMaterial | null)[][]>([[], [], []]);
+  // detail-pass housing hardware (o-ring, seam, drain) — ghosts with its sump
+  const housingExtraMats = useRef<(THREE.MeshStandardMaterial | null)[][]>([[], [], []]);
   const actionRefs = useRef<(THREE.Mesh | null)[][]>([[], [], []]);
   const actionGroups = useRef<(THREE.Group | null)[]>([]);
   const sparkRefs = useRef<(THREE.Mesh | null)[]>([]);
@@ -543,6 +545,92 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
     return tex;
   }, []);
 
+  // machined faces — concentric turning marks (roughness variation) for the
+  // head caps; reads as billet, not extruded primitive
+  const spinMap = useMemo(() => {
+    if (typeof document === "undefined") return null;
+    const s = 256;
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = s;
+    const g = cv.getContext("2d");
+    if (!g) return null;
+    g.fillStyle = "#8a8a8a";
+    g.fillRect(0, 0, s, s);
+    for (let r = 4; r < s * 0.72; r += 2 + Math.random() * 3) {
+      g.strokeStyle = `rgba(${Math.random() < 0.5 ? "255,255,255" : "40,40,40"},${0.05 + Math.random() * 0.1})`;
+      g.lineWidth = 1;
+      g.beginPath();
+      g.arc(s / 2, s / 2, r, 0, Math.PI * 2);
+      g.stroke();
+    }
+    const tex = new THREE.CanvasTexture(cv);
+    tex.anisotropy = 8;
+    return tex;
+  }, []);
+
+  // pressure-gauge dials — white face, black ticks, red zone, per-vessel needle
+  const gaugeMaps = useMemo(() => {
+    if (typeof document === "undefined") return null;
+    return [0.38, 0.52, 0.47].map((needle) => {
+      const s = 256;
+      const cv = document.createElement("canvas");
+      cv.width = cv.height = s;
+      const g = cv.getContext("2d")!;
+      const c = s / 2;
+      g.fillStyle = "#f4f4f0";
+      g.beginPath();
+      g.arc(c, c, c, 0, Math.PI * 2);
+      g.fill();
+      // sweep: 225° → -45° (classic gauge)
+      const a0 = Math.PI * 1.25, a1 = -Math.PI * 0.25;
+      const at = (t: number) => a0 + (a1 - a0) * t;
+      // red zone (last 20%)
+      g.strokeStyle = "#c23b2a";
+      g.lineWidth = 14;
+      g.beginPath();
+      g.arc(c, c, c - 26, -at(0.8), -at(1), true);
+      g.stroke();
+      // ticks + numerals
+      g.fillStyle = "#15181c";
+      g.strokeStyle = "#15181c";
+      for (let k = 0; k <= 10; k++) {
+        const t = k / 10;
+        const a = at(t);
+        const big = k % 2 === 0;
+        g.lineWidth = big ? 5 : 2.5;
+        g.beginPath();
+        g.moveTo(c + Math.cos(a) * (c - 20), c - Math.sin(a) * (c - 20));
+        g.lineTo(c + Math.cos(a) * (c - (big ? 44 : 34)), c - Math.sin(a) * (c - (big ? 44 : 34)));
+        g.stroke();
+        if (big) {
+          g.font = "700 26px Arial";
+          g.textAlign = "center";
+          g.textBaseline = "middle";
+          g.fillText(String(k * 20), c + Math.cos(a) * (c - 66), c - Math.sin(a) * (c - 66));
+        }
+      }
+      g.font = "600 22px Arial";
+      g.fillText("PSI", c, c + 44);
+      // needle
+      const na = at(needle);
+      g.strokeStyle = "#c23b2a";
+      g.lineWidth = 7;
+      g.lineCap = "round";
+      g.beginPath();
+      g.moveTo(c - Math.cos(na) * 20, c + Math.sin(na) * 20);
+      g.lineTo(c + Math.cos(na) * (c - 52), c - Math.sin(na) * (c - 52));
+      g.stroke();
+      g.fillStyle = "#15181c";
+      g.beginPath();
+      g.arc(c, c, 12, 0, Math.PI * 2);
+      g.fill();
+      const tex = new THREE.CanvasTexture(cv);
+      tex.anisotropy = 8;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    });
+  }, []);
+
   // printed vinyl label wraps on the sumps — "the product has printed text on
   // it" does more for real-not-rendition than any shader
   const labelMaps = useMemo(() => {
@@ -709,6 +797,13 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
         lm.opacity = lerp(1, 0.1, w[i]);
         lm.depthWrite = lm.opacity > 0.5;
       }
+      // housing hardware (o-ring / seam / drain) ghosts with the sump too
+      housingExtraMats.current[i].forEach((m) => {
+        if (m) {
+          m.opacity = lerp(1, 0.12, w[i]);
+          m.depthWrite = m.opacity > 0.5;
+        }
+      });
       const km = coreMats.current[i];
       if (km) km.opacity = w[i] * 0.85;
       const fg = flowGroups.current[i];
@@ -799,6 +894,13 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
               <meshStandardMaterial {...MACHINED} />
             </mesh>
           ))}
+          {/* bracket fixing bolts — hex heads proud of the face */}
+          {[-2.6, -0.85, 0.85, 2.6].map((x) => (
+            <mesh key={`bolt${x}`} position={[x, 1.02, -0.53]} rotation={[Math.PI / 2, 0, 0]}>
+              <cylinderGeometry args={[0.045, 0.045, 0.06, 6]} />
+              <meshPhysicalMaterial {...CAPS} />
+            </mesh>
+          ))}
         </>
       )}
 
@@ -837,7 +939,8 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
             >
               <mesh position={[0, 1.0, 0]}>
                 <cylinderGeometry args={[0.74, 0.74, 0.52, 48]} />
-                <meshPhysicalMaterial {...CAPS} />
+                {/* concentric turning marks — billet, not primitive */}
+                <meshPhysicalMaterial {...CAPS} roughnessMap={spinMap ?? undefined} />
               </mesh>
               {/* pressure-release button */}
               <mesh position={[0, 1.32, 0]}>
@@ -849,6 +952,44 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
                 <torusGeometry args={[0.68, 0.028, 10, 48]} />
                 <meshStandardMaterial {...MACHINED} />
               </mesh>
+              {/* wrench lugs — eight around the rim, the service-tool grip */}
+              {Array.from({ length: 8 }, (_, k) => {
+                const a = (k * Math.PI) / 4;
+                return (
+                  <mesh key={`lug${k}`} position={[Math.sin(a) * 0.72, 1.13, Math.cos(a) * 0.72]} rotation={[0, a, 0]}>
+                    <boxGeometry args={[0.1, 0.17, 0.07]} />
+                    <meshStandardMaterial {...MACHINED} />
+                  </mesh>
+                );
+              })}
+              {/* port hex bosses where the manifold enters the head */}
+              {[-0.7, 0.7].map((px) => (
+                <mesh key={`boss${px}`} position={[px, 1.0, 0]} rotation={[0, 0, Math.PI / 2]}>
+                  <cylinderGeometry args={[0.135, 0.135, 0.11, 6]} />
+                  <meshStandardMaterial {...MACHINED} />
+                </mesh>
+              ))}
+              {/* pressure gauge on the head face — dial per vessel */}
+              {gaugeMaps && (
+                <group position={[0, 1.05, 0.72]}>
+                  <mesh position={[0, 0, 0.04]} rotation={[Math.PI / 2, 0, 0]}>
+                    <cylinderGeometry args={[0.035, 0.035, 0.16, 12]} />
+                    <meshStandardMaterial {...MACHINED} />
+                  </mesh>
+                  <mesh position={[0, 0, 0.15]} rotation={[Math.PI / 2, 0, 0]}>
+                    <cylinderGeometry args={[0.13, 0.13, 0.07, 32]} />
+                    <meshPhysicalMaterial {...CAPS} />
+                  </mesh>
+                  <mesh position={[0, 0, 0.19]}>
+                    <torusGeometry args={[0.122, 0.018, 10, 40]} />
+                    <meshStandardMaterial {...MACHINED} />
+                  </mesh>
+                  <mesh position={[0, 0, 0.187]}>
+                    <circleGeometry args={[0.112, 32]} />
+                    <meshStandardMaterial map={gaugeMaps[i]} roughness={0.35} metalness={0} />
+                  </mesh>
+                </group>
+              )}
             </group>
           )}
 
@@ -877,6 +1018,42 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
                     domeMats.current[i] = el;
                   }}
                   {...CAPS}
+                  transparent
+                />
+              </mesh>
+              {/* housing hardware — o-ring seat, rolled seam, drain plug
+                  (ghost with the sump; the o-ring stays when the head lifts,
+                  exactly like the real service moment) */}
+              <mesh position={[0, 0.745, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                <torusGeometry args={[0.615, 0.02, 10, 48]} />
+                <meshStandardMaterial
+                  ref={(el) => {
+                    housingExtraMats.current[i][0] = el;
+                  }}
+                  color="#101214"
+                  roughness={0.92}
+                  transparent
+                />
+              </mesh>
+              <mesh position={[0, 0.52, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                <torusGeometry args={[0.622, 0.007, 8, 48]} />
+                <meshStandardMaterial
+                  ref={(el) => {
+                    housingExtraMats.current[i][1] = el;
+                  }}
+                  color="#4c565e"
+                  metalness={1}
+                  roughness={0.5}
+                  transparent
+                />
+              </mesh>
+              <mesh position={[0, -1.77, 0]}>
+                <cylinderGeometry args={[0.06, 0.06, 0.07, 6]} />
+                <meshStandardMaterial
+                  ref={(el) => {
+                    housingExtraMats.current[i][2] = el;
+                  }}
+                  {...MACHINED}
                   transparent
                 />
               </mesh>
