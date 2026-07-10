@@ -1818,6 +1818,28 @@
   .jd-bomlist-row span:first-child {
     border-left: none;
   }
+  /* phones: the sheet is width-bound (~92vw) so the paper is small — clear it
+     of HTML furniture. The note narrates from the studio void below the sheet
+     (light ink on dark), and the BOM/rev tables — draughting texture that
+     would bury the drawing at this size — stand down. */
+  @media (max-width: 640px) {
+    .jd-note {
+      top: 100%;
+      max-width: 94%;
+      padding-top: 16px;
+    }
+    .jd-eyebrow {
+      color: #7fc4e8;
+    }
+    .jd-note p {
+      color: #b9d2e2;
+      font-size: 12px;
+    }
+    .jd-bomlist,
+    .jd-revtable {
+      display: none;
+    }
+  }
 
   .reveal {
     opacity: 0;

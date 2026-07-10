@@ -165,11 +165,22 @@ function Rig({ progress }: { progress: MutableRefObject<number> }) {
     const e = b.p === 0.1 || b.p === 1.0 ? ss(t, 0, 1) : t;
     camera.position.set(lerp(a.pos[0], b.pos[0], e), lerp(a.pos[1], b.pos[1], e), lerp(a.pos[2], b.pos[2], e));
     tgt.current.set(lerp(a.tgt[0], b.tgt[0], e), lerp(a.tgt[1], b.tgt[1], e), lerp(a.tgt[2], b.tgt[2], e));
+    // portrait rescue — the hero pose frames all three vessels only above
+    // ~1.15 aspect; on narrow screens pull back + widen the lens so the whole
+    // assembly stays in frame. MUST be gone by p=0.10: the dock's ink
+    // registration is derived from the unmodified rail.
+    const cam = camera as THREE.PerspectiveCamera;
+    const narrow = THREE.MathUtils.clamp((1.15 - cam.aspect) / 0.5, 0, 1);
+    const heroW = narrow * (1 - ss(p, 0.07, 0.1));
+    if (heroW > 0) {
+      camera.position.z += heroW * 4.5;
+      camera.position.x *= 1 - heroW * 0.3;
+      camera.position.y += heroW * 0.2;
+    }
     camera.up.set(0, 1, 0);
     camera.lookAt(tgt.current);
     // subtle dolly-zoom "breath" — the lens pushes in at each vessel visit
-    const cam = camera as THREE.PerspectiveCamera;
-    const fov = 38 - interiorMax(p) * 5;
+    const fov = 38 - interiorMax(p) * 5 + heroW * 10;
     if (Math.abs(cam.fov - fov) > 0.01) {
       cam.fov = fov;
       cam.updateProjectionMatrix();
