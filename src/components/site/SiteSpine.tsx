@@ -21,10 +21,10 @@ function TrustPlate() {
             NOT TO A PRICE.
           </h2>
           <p className="sheet-p">
-            Most home filters are bought in, badged and boxed. The NGW-01 is one sealed column — drawn, toleranced and
-            signed off before a single unit is built, the way you engineer a machine, not assemble a kit. Read the figures
-            on these sheets like a spec sheet, because that is what they are. Every one is a placeholder pending
-            substantiation; drawings carry tolerances, and so do our claims.
+            Most home filters are bought in, badged and boxed. The NGW-01 is a sealed three-vessel assembly — drawn,
+            toleranced and signed off before a single unit is built, the way you engineer a machine, not assemble a kit.
+            Read the figures on these sheets like a spec sheet, because that is what they are. Every one is a placeholder
+            pending substantiation; drawings carry tolerances, and so do our claims.
           </p>
         </div>
         <div className="notes-col" aria-label="General notes">
@@ -195,7 +195,9 @@ const SCHEDULE = [
   { c: "LEAD", v: 98, m: "KDF 55 redox — soluble cations*" },
   { c: "HEAVY METALS", v: 96, m: "KDF redox*" },
   { c: "IRON & H₂S", v: 95, m: "KDF 85 redox*" },
-  { c: "SCALE / LIMESCALE", v: 90, m: "limescale-reduction media*" },
+  // scale-FORMATION reduction (crystallisation inhibited) — NOT hardness/TDS
+  // removal, which KDF/carbon systems cannot claim (RO-only)
+  { c: "SCALE FORMATION", v: 90, m: "limescale-reduction media — formation, not hardness removal*" },
   { c: "SEDIMENT", v: 99, m: "10/5/1µm 3-layer pre-filter*" },
 ];
 function BenchmarkPlate() {
@@ -410,7 +412,7 @@ function TitleBlockFooter() {
             <i>COMPANY</i>NEXT GEN WATER SYSTEMS
           </div>
           <div className="tbf-cell">
-            <i>DRAWING</i>NGW-01 WHOLE-HOME FILTRATION COLUMN
+            <i>DRAWING</i>NGW-01 WHOLE-HOME FILTRATION — 3-VESSEL ASSEMBLY
           </div>
           <div className="tbf-cell">
             <i>SHEET</i>09 OF 09

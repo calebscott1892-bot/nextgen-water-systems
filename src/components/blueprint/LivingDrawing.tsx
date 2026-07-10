@@ -195,13 +195,20 @@ export function LivingDrawing() {
           }
 
           // fallback-only parallax tilt on the SVG still (when there's no live 3D
-          // chrome to register against); with WebGL the ink must stay un-skewed
-          if (col && !webgl) {
-            const t = gsap.utils.clamp(0, 1, gsap.utils.mapRange(0, 0.24, 1, 0, bpU));
-            col.setAttribute(
-              "transform",
-              `translate(540 440) skewY(${-2.4 * t}) scale(${1 + 0.05 * t}, ${1 + 0.02 * t}) translate(-540 -440)`,
-            );
+          // chrome to register against); with WebGL the ink must stay un-skewed.
+          // The else-branch is load-bearing (review-confirmed): the effect first
+          // runs with webgl=false and leaves a raw stale transform attribute that
+          // ctx.revert() cannot undo — the webgl run must actively clear it.
+          if (col) {
+            if (!webgl) {
+              const t = gsap.utils.clamp(0, 1, gsap.utils.mapRange(0, 0.24, 1, 0, bpU));
+              col.setAttribute(
+                "transform",
+                `translate(540 440) skewY(${-2.4 * t}) scale(${1 + 0.05 * t}, ${1 + 0.02 * t}) translate(-540 -440)`,
+              );
+            } else {
+              col.removeAttribute("transform");
+            }
           }
 
           // pen-tip rides the active stroke head (and rides it backward on revert)
@@ -223,7 +230,7 @@ export function LivingDrawing() {
         }
       };
 
-      ScrollTrigger.create({
+      const st = ScrollTrigger.create({
         trigger: root,
         start: "top top",
         end: "bottom bottom",
@@ -234,8 +241,9 @@ export function LivingDrawing() {
         onUpdate: (self) => applyFrame(DBG_JP ?? self.progress),
       });
       // apply the initial frame immediately — ScrollTrigger doesn't fire
-      // onUpdate at creation, and the ?ngjp freeze must work with zero scroll
-      applyFrame(DBG_JP ?? 0);
+      // onUpdate at creation, and the ?ngjp freeze must work with zero scroll.
+      // Seed from st.progress (not 0) so scroll-restored loads land mid-journey.
+      applyFrame(DBG_JP ?? st.progress);
     }, root);
 
     return () => ctx.revert();

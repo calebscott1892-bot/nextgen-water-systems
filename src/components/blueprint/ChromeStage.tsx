@@ -188,6 +188,8 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
   const headGroups = useRef<(THREE.Group | null)[]>([]);
   const cartGroups = useRef<(THREE.Group | null)[]>([]);
   const boreLight = useRef<THREE.PointLight>(null);
+  const actionRefs = useRef<(THREE.Mesh | null)[][]>([[], [], []]);
+  const sparkRefs = useRef<(THREE.Mesh | null)[]>([]);
   const [labelsOn, setLabelsOn] = useState(false);
 
   // procedural micro-roughness — real steel is never a perfect mirror. Fine
@@ -253,6 +255,82 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
     return tex;
   }, []);
 
+  // granule bed for the KDF cartridge — black GAC + copper body + glinting
+  // brass KDF flecks (the §A-KDF "bed of loose granules" read)
+  const granuleMap = useMemo(() => {
+    if (typeof document === "undefined") return null;
+    const s = 256;
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = s;
+    const g = cv.getContext("2d");
+    if (!g) return null;
+    g.fillStyle = "#7c4c28";
+    g.fillRect(0, 0, s, s);
+    for (let k = 0; k < 2400; k++) {
+      const r = Math.random();
+      g.fillStyle = r < 0.48 ? "#14181d" : r < 0.76 ? "#a97142" : "#e2a55e";
+      const sz = 1 + Math.random() * 2.4;
+      g.fillRect(Math.random() * s, Math.random() * s, sz, sz);
+    }
+    const tex = new THREE.CanvasTexture(cv);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(3, 3);
+    tex.anisotropy = 4;
+    return tex;
+  }, []);
+
+  /* ---- per-vessel interior ACTIONS (the doc's "what working looks like") ----
+     V1: rust/silt particles spiral inward and decelerate INTO the fibre mat.
+     V2: contaminant ions drift onto the granule bed while redox sparks fire
+         (electron-transfer micro-events on the copper-zinc surface).
+     V3: pale scale flecks shrink away as the media captures them. */
+  const actionMats = useMemo(
+    () => [
+      [
+        new THREE.MeshStandardMaterial({ color: "#b3552e", roughness: 0.8, transparent: true, opacity: 0 }),
+        new THREE.MeshStandardMaterial({ color: "#8a8378", roughness: 0.85, transparent: true, opacity: 0 }),
+      ],
+      [
+        new THREE.MeshStandardMaterial({ color: "#3a4149", roughness: 0.6, transparent: true, opacity: 0 }),
+        new THREE.MeshStandardMaterial({
+          color: "#7fe4ff",
+          emissive: "#29c2ee",
+          emissiveIntensity: 2.4,
+          toneMapped: false,
+          transparent: true,
+          opacity: 0,
+        }),
+      ],
+      [new THREE.MeshStandardMaterial({ color: "#e8ecef", roughness: 0.5, transparent: true, opacity: 0 })],
+    ],
+    [],
+  );
+  type ASpec = { angle: number; phase: number; speed: number; y: number; size: number; mi: number };
+  const actionSpecs = useMemo<ASpec[][]>(() => {
+    const R = Math.random;
+    const mk = (n: number, speed: [number, number], size: [number, number], twoMats: boolean): ASpec[] =>
+      Array.from({ length: n }, () => ({
+        angle: R() * Math.PI * 2,
+        phase: R(),
+        speed: speed[0] + R() * (speed[1] - speed[0]),
+        y: -1.15 + R() * 1.45,
+        size: size[0] + R() * (size[1] - size[0]),
+        mi: twoMats && R() > 0.55 ? 1 : 0,
+      }));
+    return [mk(12, [0.1, 0.18], [0.022, 0.046], true), mk(10, [0.12, 0.2], [0.02, 0.04], false), mk(8, [0.07, 0.12], [0.024, 0.044], false)];
+  }, []);
+  const sparkSpecs = useMemo(
+    () =>
+      Array.from({ length: 8 }, (_, k) => ({
+        angle: (k / 8) * Math.PI * 2 + Math.random() * 0.5,
+        y: -1.05 + (k / 8) * 1.35 + Math.random() * 0.15,
+        phase: Math.random() * Math.PI * 2,
+        freq: 1.6 + Math.random() * 1.3,
+      })),
+    [],
+  );
+  const sphereGeo = useMemo(() => new THREE.SphereGeometry(1, 10, 8), []);
+
   useFrame((state) => {
     const p = progress.current;
     const g = assy.current;
@@ -289,12 +367,29 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
         dm.opacity = lerp(1, 0.12, w[i]);
         dm.depthWrite = dm.opacity > 0.5;
       }
+      // cap in-window cartridge opacity below 1 so the emissive core reads
+      // through the media wall (full opacity only for the service explode)
       const cm = cartMats.current[i];
-      if (cm) cm.opacity = Math.max(w[i], explode);
+      if (cm) cm.opacity = Math.max(w[i] * 0.85, explode);
       const km = coreMats.current[i];
       if (km) km.opacity = w[i] * 0.85;
       const fg = flowGroups.current[i];
       if (fg) fg.visible = w[i] > 0.05;
+      // interior action particles (radial capture motion, per the reference doc)
+      actionMats[i].forEach((m) => (m.opacity = w[i]));
+      if (w[i] > 0.02) {
+        const tt = state.clock.elapsedTime;
+        actionSpecs[i].forEach((s, k) => {
+          const mesh = actionRefs.current[i][k];
+          if (!mesh) return;
+          const t01 = (tt * s.speed + s.phase) % 1;
+          const eased = 1 - (1 - t01) * (1 - t01); // decelerates INTO the media wall
+          const r = lerp(0.6, 0.415, eased);
+          mesh.position.set(Math.sin(s.angle) * r, s.y - t01 * 0.1, Math.cos(s.angle) * r);
+          const sc = i === 2 ? s.size * (1 - eased * 0.85) : s.size; // V3: flecks dissolve
+          mesh.scale.setScalar(Math.max(sc, 1e-4));
+        });
+      }
       const rm = ringMats.current[i];
       if (rm) rm.emissiveIntensity = lerp(1.1, 0.15, through);
       // service explode: heads lift off, cartridges rise out of the sumps
@@ -304,13 +399,27 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
       if (cg) cg.position.y = explode * (0.95 + i * 0.12);
     }
 
-    // interior glow tracks the active vessel (soft cyan, breathing)
+    // KDF redox sparks — brief electron-transfer flashes on the granule bed
+    {
+      const tt = state.clock.elapsedTime;
+      sparkSpecs.forEach((s, k) => {
+        const m = sparkRefs.current[k];
+        if (!m) return;
+        const pulse = Math.max(0, Math.sin(tt * s.freq + s.phase));
+        m.scale.setScalar(0.01 + Math.pow(pulse, 8) * 0.055);
+      });
+    }
+
+    // interior glow tracks the active vessel (soft, breathing), and its colour
+    // tells the water's story: murky at V1, coppery-neutral at V2, clean at V3
     if (boreLight.current) {
       const sum = w[0] + w[1] + w[2];
       const x = sum > 0.001 ? (w[0] * VESSELS[0].x + w[1] * VESSELS[1].x + w[2] * VESSELS[2].x) / sum : 0;
       boreLight.current.position.x = x;
       const breathe = 1 + Math.sin(state.clock.elapsedTime * 2.1) * 0.12;
       boreLight.current.intensity = through * 0.5 * breathe;
+      if (through > 0.02)
+        boreLight.current.color.set(w[0] >= w[1] && w[0] >= w[2] ? "#e3c39a" : w[1] >= w[2] ? "#cfeef8" : "#bfe9ff");
     }
   });
 
@@ -402,7 +511,9 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
             </>
           )}
 
-          {/* cartridge (revealed in-window; rises out on the explode) */}
+          {/* cartridge (revealed in-window; rises out on the explode).
+              depthWrite OFF + core renderOrder (review-confirmed): otherwise the
+              cartridge depth-occludes the core and "up the core" never renders. */}
           {!hidden("stages") && (
             <group
               ref={(el) => {
@@ -415,17 +526,20 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
                   ref={(el) => {
                     cartMats.current[i] = el;
                   }}
-                  color={v.cart}
+                  color={i === 1 && granuleMap ? "#ffffff" : v.cart}
+                  map={i === 1 ? granuleMap ?? undefined : undefined}
                   metalness={v.cartMetal}
                   roughness={v.cartRough}
                   bumpMap={i === 0 ? bumpMap ?? undefined : undefined}
                   bumpScale={i === 0 ? 0.02 : 0}
                   transparent
+                  depthWrite={false}
                   opacity={0}
                 />
               </mesh>
-              {/* hollow core the filtered water rises through */}
-              <mesh position={[0, -0.42, 0]}>
+              {/* hollow core the filtered water rises through (draws after the
+                  cartridge so its glow reads through the ghosted media wall) */}
+              <mesh position={[0, -0.42, 0]} renderOrder={2}>
                 <cylinderGeometry args={[0.085, 0.085, 2.08, 20]} />
                 <meshStandardMaterial
                   ref={(el) => {
@@ -433,8 +547,9 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
                   }}
                   color="#0f6f8e"
                   emissive="#29c2ee"
-                  emissiveIntensity={0.5}
+                  emissiveIntensity={0.9}
                   transparent
+                  depthWrite={false}
                   opacity={0}
                 />
               </mesh>
@@ -483,6 +598,36 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
                 <meshStandardMaterial color="#29c2ee" emissive="#29c2ee" emissiveIntensity={0.7} />
               </mesh>
             </group>
+          )}
+
+          {/* interior actions — the "what working looks like" micro-events */}
+          {!hidden("actions") && (
+            <>
+              {actionSpecs[i].map((s, k) => (
+                <mesh
+                  key={`a${k}`}
+                  ref={(el) => {
+                    actionRefs.current[i][k] = el;
+                  }}
+                  geometry={sphereGeo}
+                  material={actionMats[i][s.mi]}
+                  scale={s.size}
+                />
+              ))}
+              {i === 1 &&
+                sparkSpecs.map((s, k) => (
+                  <mesh
+                    key={`sp${k}`}
+                    ref={(el) => {
+                      sparkRefs.current[k] = el;
+                    }}
+                    geometry={sphereGeo}
+                    material={actionMats[1][1]}
+                    position={[Math.sin(s.angle) * 0.415, s.y, Math.cos(s.angle) * 0.415]}
+                    scale={0.01}
+                  />
+                ))}
+            </>
           )}
 
           {/* cyan brand ring seated at the sump base */}
