@@ -1,8 +1,8 @@
 "use client";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Environment, ContactShadows, Html, Lightformer } from "@react-three/drei";
-import { EffectComposer, Bloom, Vignette, ChromaticAberration } from "@react-three/postprocessing";
+import { Environment, ContactShadows, Html, Lightformer, MeshReflectorMaterial } from "@react-three/drei";
+import { EffectComposer, Bloom, Vignette, ChromaticAberration, N8AO } from "@react-three/postprocessing";
 import { useMemo, useRef, useState, type MutableRefObject } from "react";
 import * as THREE from "three";
 import { asset } from "@/lib/asset";
@@ -187,6 +187,42 @@ function Rig({ progress }: { progress: MutableRefObject<number> }) {
     }
   });
   return null;
+}
+
+/** EXPLORATION (branch): polished-concrete mirror that exists only while the
+ *  camera is up at the elevated service view — the machine is wall-mounted,
+ *  so a permanent floor reads as levitation from the hero's low angle. */
+function ServiceFloor({ progress }: { progress: MutableRefObject<number> }) {
+  const mesh = useRef<THREE.Mesh>(null);
+  useFrame(() => {
+    const p = progress.current;
+    const w = ss(p, 0.74, 0.8) * (1 - ss(p, 0.92, 0.97));
+    const m = mesh.current;
+    if (!m) return;
+    m.visible = w > 0.02;
+    const mat = m.material as THREE.Material & { opacity: number };
+    if (mat) mat.opacity = w * 0.96;
+  });
+  return (
+    <mesh ref={mesh} visible={false} rotation-x={-Math.PI / 2} position={[0, -1.74, 0]}>
+      <planeGeometry args={[44, 44]} />
+      <MeshReflectorMaterial
+        transparent
+        opacity={0}
+        blur={[320, 90]}
+        resolution={1024}
+        mixBlur={1}
+        mixStrength={9}
+        roughness={0.9}
+        depthScale={1.1}
+        minDepthThreshold={0.4}
+        maxDepthThreshold={1.3}
+        color="#0a1017"
+        metalness={0.55}
+        mirror={0.5}
+      />
+    </mesh>
+  );
 }
 
 function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
@@ -716,8 +752,21 @@ export default function ChromeStage({ progress, active }: Props) {
         <ContactShadows position={[0, -1.72, 0]} opacity={0.55} scale={14} blur={3} far={5} color="#000000" />
       )}
 
+      {/* EXPLORATION (branch): the service-bay floor. At the hero's low angle a
+          floor slab slices the frame and makes wall-mounted hardware look like
+          it's levitating — so the polished-concrete mirror exists ONLY for the
+          elevated service beat, fading in as the camera rises. */}
+      {!hidden("floor") && <ServiceFloor progress={progress} />}
+
       {!hidden("post") && (
         <EffectComposer>
+          {/* EXPLORATION (branch): contact-darkening in the crevices — flange
+              seats, port shoulders, cartridge-to-wall gaps */}
+          {!hidden("ao") ? (
+            <N8AO aoRadius={0.45} intensity={1.2} distanceFalloff={0.6} halfRes />
+          ) : (
+            <></>
+          )}
           <Bloom intensity={0.42} luminanceThreshold={0.82} luminanceSmoothing={0.28} mipmapBlur />
           {/* lens fringe kept to the frame edges — dead-centre chrome stays clinically sharp */}
           <ChromaticAberration offset={CA_OFFSET} radialModulation modulationOffset={0.3} />

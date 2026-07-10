@@ -29,6 +29,9 @@ importers:
       lenis:
         specifier: ^1.1.14
         version: 1.3.24(react@18.3.1)
+      n8ao:
+        specifier: ^1.10.3
+        version: 1.10.3(postprocessing@6.39.1(three@0.169.0))(three@0.169.0)
       next:
         specifier: ^14.2.5
         version: 14.2.35(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -579,8 +582,8 @@ packages:
   mz@2.7.0:
     resolution: {integrity: sha512-z81GNO7nnYMEhrGh9LeymoE4+Yr0Wn5McHIZMK5cfQCl+NDX08sCZgUc9/6MHni9IWuFLm1Z3HTCXu2z9fN62Q==}
 
-  n8ao@1.10.2:
-    resolution: {integrity: sha512-gh4i0xFP8DiRaNoX75kPiG3kGl7PmX9SW/OIn3Sv/YZmHrA8faLdSU1MM6M4gKtfKpxDnZagodu8FKob5URCVw==}
+  n8ao@1.10.3:
+    resolution: {integrity: sha512-JFRk4WgUAUWO2KdJTqmBT02dP9kG7rE2oQbBy64E9+YwQ3d96KB9QBanqNy/NnYUfUTYU6Z/5OS5t/yLey7+6Q==}
     peerDependencies:
       postprocessing: '>=6.30.0'
       three: '>=0.137'
@@ -1137,7 +1140,7 @@ snapshots:
       '@react-three/fiber': 8.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.169.0)
       buffer: 6.0.3
       maath: 0.6.0(@types/three@0.185.0)(three@0.169.0)
-      n8ao: 1.10.2(postprocessing@6.39.1(three@0.169.0))(three@0.169.0)
+      n8ao: 1.10.3(postprocessing@6.39.1(three@0.169.0))(three@0.169.0)
       postprocessing: 6.39.1(three@0.169.0)
       react: 18.3.1
       three: 0.169.0
@@ -1435,7 +1438,7 @@ snapshots:
       object-assign: 4.1.1
       thenify-all: 1.6.0
 
-  n8ao@1.10.2(postprocessing@6.39.1(three@0.169.0))(three@0.169.0):
+  n8ao@1.10.3(postprocessing@6.39.1(three@0.169.0))(three@0.169.0):
     dependencies:
       postprocessing: 6.39.1(three@0.169.0)
       three: 0.169.0
