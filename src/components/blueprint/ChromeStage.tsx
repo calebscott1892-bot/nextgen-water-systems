@@ -2,7 +2,7 @@
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Environment, ContactShadows, Html, Lightformer } from "@react-three/drei";
-import { EffectComposer, Bloom, Vignette, ChromaticAberration } from "@react-three/postprocessing";
+import { EffectComposer, Bloom, Vignette, ChromaticAberration, DepthOfField } from "@react-three/postprocessing";
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import * as THREE from "three";
 import { asset } from "@/lib/asset";
@@ -135,6 +135,27 @@ function Backdrop() {
     });
   }, []);
   return <mesh geometry={geo} material={mat} renderOrder={-1} frustumCulled={false} />;
+}
+
+/** Phase 3 — scroll-driven photography: focus rides the vessel being
+ *  discussed (weighted by the interior windows), the lens opens up inside the
+ *  machine, and the DoF stands down entirely at the trace dock where ink
+ *  registration owns a clinically sharp frame. */
+function FocusRig({ progress, dof }: { progress: MutableRefObject<number>; dof: MutableRefObject<{ target?: THREE.Vector3; bokehScale: number; cocMaterial?: { worldFocusRange: number } } | null> }) {
+  useFrame(() => {
+    const eff = dof.current;
+    if (!eff) return;
+    const p = progress.current;
+    const w = interiorWindows(p);
+    const through = Math.max(...w);
+    const dockW = ss(p, 0.04, 0.1) * (1 - ss(p, 0.36, 0.44));
+    const sum = w[0] + w[1] + w[2];
+    const x = sum > 0.001 ? (w[0] * VESSELS[0].x + w[1] * VESSELS[1].x + w[2] * VESSELS[2].x) / sum : 0;
+    if (eff.target) eff.target.set(x, -0.1, 0);
+    if (eff.cocMaterial) eff.cocMaterial.worldFocusRange = 3.4 - through * 1.2;
+    eff.bokehScale = (1.3 + through * 1.9) * (1 - dockW);
+  });
+  return null;
 }
 
 /** Mounted INSIDE the Canvas's suspense boundary — its effect can only fire
@@ -316,6 +337,9 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
   const headGroups = useRef<(THREE.Group | null)[]>([]);
   const cartGroups = useRef<(THREE.Group | null)[]>([]);
   const boreLight = useRef<THREE.PointLight>(null);
+  // Phase 3: printed label wraps (ghost with their sump) + cartridge end caps
+  const labelMatRefs = useRef<(THREE.MeshStandardMaterial | null)[]>([]);
+  const capMatRefs = useRef<(THREE.MeshStandardMaterial | null)[][]>([[], [], []]);
   const actionRefs = useRef<(THREE.Mesh | null)[][]>([[], [], []]);
   const actionGroups = useRef<(THREE.Group | null)[]>([]);
   const sparkRefs = useRef<(THREE.Mesh | null)[]>([]);
@@ -412,6 +436,165 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
     return tex;
   }, []);
 
+  /* ── Phase 3 — the cartridges become MANUFACTURED PARTS, not primitives ── */
+
+  // V1: pleated spun-poly — vertical facet shading + fibre noise (map + bump)
+  const pleatMaps = useMemo(() => {
+    if (typeof document === "undefined") return null;
+    const w = 512, h = 128;
+    const mk = () => {
+      const cv = document.createElement("canvas");
+      cv.width = w;
+      cv.height = h;
+      return cv;
+    };
+    const col = mk(), bmp = mk();
+    const gc = col.getContext("2d"), gb = bmp.getContext("2d");
+    if (!gc || !gb) return null;
+    const PLEATS = 36;
+    const pw = w / PLEATS;
+    for (let i = 0; i < PLEATS; i++) {
+      const x0 = i * pw;
+      // each pleat: bright ridge → shadowed valley (triangle shading)
+      const grad = gc.createLinearGradient(x0, 0, x0 + pw, 0);
+      grad.addColorStop(0, "#d9d6cd");
+      grad.addColorStop(0.45, "#f4f2ec");
+      grad.addColorStop(0.55, "#f4f2ec");
+      grad.addColorStop(1, "#c9c6bc");
+      gc.fillStyle = grad;
+      gc.fillRect(x0, 0, pw, h);
+      const bg = gb.createLinearGradient(x0, 0, x0 + pw, 0);
+      bg.addColorStop(0, "#404040");
+      bg.addColorStop(0.5, "#ffffff");
+      bg.addColorStop(1, "#404040");
+      gb.fillStyle = bg;
+      gb.fillRect(x0, 0, pw, h);
+    }
+    // fibre speckle
+    for (let k = 0; k < 1600; k++) {
+      gc.fillStyle = Math.random() < 0.5 ? "rgba(255,255,255,0.25)" : "rgba(120,116,105,0.18)";
+      gc.fillRect(Math.random() * w, Math.random() * h, 1, 1 + Math.random() * 2);
+    }
+    const map = new THREE.CanvasTexture(col);
+    const bump = new THREE.CanvasTexture(bmp);
+    [map, bump].forEach((t) => {
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(2, 1);
+      t.anisotropy = 8;
+    });
+    map.colorSpace = THREE.SRGBColorSpace;
+    return { map, bump };
+  }, []);
+
+  // V3: extruded carbon block — matte black, fine speckle, faint striations
+  const carbonMap = useMemo(() => {
+    if (typeof document === "undefined") return null;
+    const s = 256;
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = s;
+    const g = cv.getContext("2d");
+    if (!g) return null;
+    g.fillStyle = "#191c20";
+    g.fillRect(0, 0, s, s);
+    for (let x = 0; x < s; x += 6) {
+      g.fillStyle = `rgba(0,0,0,${0.1 + 0.12 * Math.abs(Math.sin(x * 0.7))})`;
+      g.fillRect(x, 0, 2, s);
+    }
+    for (let k = 0; k < 2600; k++) {
+      const r = Math.random();
+      g.fillStyle = r < 0.55 ? "#0d0f12" : r < 0.85 ? "#262b31" : "#3a4149";
+      g.fillRect(Math.random() * s, Math.random() * s, 1, 1 + Math.random());
+    }
+    const tex = new THREE.CanvasTexture(cv);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(3, 2);
+    tex.anisotropy = 8;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }, []);
+
+  // the hollow core reads as RISING WATER — an animated streak map scrolled
+  // upward in useFrame (emissive so it stays luminous through the ghost wall)
+  const coreFlowMap = useMemo(() => {
+    if (typeof document === "undefined") return null;
+    const w = 64, h = 256;
+    const cv = document.createElement("canvas");
+    cv.width = w;
+    cv.height = h;
+    const g = cv.getContext("2d");
+    if (!g) return null;
+    g.fillStyle = "#0f7c9e";
+    g.fillRect(0, 0, w, h);
+    for (let k = 0; k < 90; k++) {
+      const x = Math.random() * w;
+      const y0 = Math.random() * h;
+      const len = 20 + Math.random() * 70;
+      const grad = g.createLinearGradient(0, y0, 0, y0 + len);
+      grad.addColorStop(0, "rgba(220,248,255,0)");
+      grad.addColorStop(0.5, `rgba(190,240,255,${0.25 + Math.random() * 0.5})`);
+      grad.addColorStop(1, "rgba(220,248,255,0)");
+      g.fillStyle = grad;
+      g.fillRect(x, y0, 1 + Math.random() * 2, len);
+    }
+    const tex = new THREE.CanvasTexture(cv);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(2, 1.4);
+    tex.anisotropy = 4;
+    return tex;
+  }, []);
+
+  // printed vinyl label wraps on the sumps — "the product has printed text on
+  // it" does more for real-not-rendition than any shader
+  const labelMaps = useMemo(() => {
+    if (typeof document === "undefined") return null;
+    return VESSELS.map((v) => {
+      // 640×410 ≈ the strip's world aspect (arc 1.19 × height 0.76)
+      const w = 640, h = 410;
+      const cv = document.createElement("canvas");
+      cv.width = w;
+      cv.height = h;
+      const g = cv.getContext("2d")!;
+      g.fillStyle = "#f2f3ee";
+      g.fillRect(0, 0, w, h);
+      g.strokeStyle = "#12324a";
+      g.lineWidth = 6;
+      g.strokeRect(10, 10, w - 20, h - 20);
+      // header band
+      g.fillStyle = "#12324a";
+      g.fillRect(10, 10, w - 20, 64);
+      g.fillStyle = "#f2f3ee";
+      g.font = "700 36px Arial, sans-serif";
+      g.fillText("NEXT GEN", 30, 56);
+      g.font = "400 26px Arial, sans-serif";
+      g.textAlign = "right";
+      g.fillText("NGW-01", w - 30, 55);
+      g.textAlign = "left";
+      // stage number + title
+      g.fillStyle = "#12324a";
+      g.font = "800 92px Arial, sans-serif";
+      g.fillText(`STAGE ${Number(v.n)}`, 28, 186);
+      g.font = "600 34px Arial, sans-serif";
+      g.fillText(v.title.toUpperCase(), 28, 246);
+      g.font = "400 24px monospace";
+      g.fillStyle = "#3c5a70";
+      g.fillText(v.sub, 28, 292);
+      // divider + footer row
+      g.strokeStyle = "#c9ccc2";
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(28, 330);
+      g.lineTo(w - 28, 330);
+      g.stroke();
+      g.fillStyle = "#3c5a70";
+      g.font = "400 22px monospace";
+      g.fillText("MAX 100 PSI*  ·  4.5″ × 20″  ·  FLOW →", 28, 372);
+      const tex = new THREE.CanvasTexture(cv);
+      tex.anisotropy = 8;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    });
+  }, []);
+
   /* ---- per-vessel interior ACTIONS (the doc's "what working looks like") ----
      V1: rust/silt particles spiral inward and decelerate INTO the fibre mat.
      V2: contaminant ions drift onto the granule bed while redox sparks fire
@@ -467,7 +650,7 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
   );
   const sphereGeo = useMemo(() => new THREE.SphereGeometry(1, 10, 8), []);
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     const p = progress.current;
     const g = assy.current;
     const dock = ss(p, 0.04, 0.1); // settled to dock (drift stops BEFORE the trace)
@@ -517,6 +700,15 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
       // through the media wall (full opacity only for the service explode)
       const cm = cartMats.current[i];
       if (cm) cm.opacity = Math.max(w[i] * 0.85, explode);
+      capMatRefs.current[i].forEach((m) => {
+        if (m) m.opacity = Math.max(w[i] * 0.85, explode);
+      });
+      // the printed label ghosts in step with its sump wall
+      const lm = labelMatRefs.current[i];
+      if (lm) {
+        lm.opacity = lerp(1, 0.1, w[i]);
+        lm.depthWrite = lm.opacity > 0.5;
+      }
       const km = coreMats.current[i];
       if (km) km.opacity = w[i] * 0.85;
       const fg = flowGroups.current[i];
@@ -550,6 +742,9 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
       const cg = cartGroups.current[i];
       if (cg) cg.position.y = cartLift * (0.95 + i * 0.12);
     }
+
+    // the core water RISES — scroll the streak map while any interior is open
+    if (coreFlowMap && through > 0.01) coreFlowMap.offset.y -= delta * 0.55;
 
     // KDF redox sparks — brief electron-transfer flashes on the granule bed
     // (only animated while V2's window is open; the group is hidden otherwise)
@@ -685,6 +880,23 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
                   transparent
                 />
               </mesh>
+              {/* Phase 3: printed vinyl label wrap (~109° facing front) —
+                  ghosts with its sump during the interior dive */}
+              {labelMaps && (
+                <mesh position={[0, -0.34, 0]}>
+                  <cylinderGeometry args={[0.625, 0.625, 0.76, 48, 1, true, -0.95, 1.9]} />
+                  <meshStandardMaterial
+                    ref={(el) => {
+                      labelMatRefs.current[i] = el;
+                    }}
+                    map={labelMaps[i]}
+                    roughness={0.5}
+                    metalness={0}
+                    transparent
+                    side={THREE.FrontSide}
+                  />
+                </mesh>
+              )}
             </>
           )}
 
@@ -699,32 +911,55 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
             >
               <mesh position={[0, -0.42, 0]}>
                 <cylinderGeometry args={[0.4, 0.4, 2.05, 40]} />
+                {/* Phase 3: three visibly DIFFERENT manufactured parts —
+                    white pleated poly / copper-zinc granules / carbon block */}
                 <meshStandardMaterial
                   ref={(el) => {
                     cartMats.current[i] = el;
                   }}
-                  color={i === 1 && granuleMap ? "#ffffff" : v.cart}
-                  map={i === 1 ? granuleMap ?? undefined : undefined}
-                  metalness={v.cartMetal}
-                  roughness={v.cartRough}
-                  bumpMap={i === 0 ? bumpMap ?? undefined : undefined}
-                  bumpScale={i === 0 ? 0.02 : 0}
+                  color={(i === 0 && pleatMaps) || (i === 1 && granuleMap) || (i === 2 && carbonMap) ? "#ffffff" : v.cart}
+                  map={i === 0 ? pleatMaps?.map ?? undefined : i === 1 ? granuleMap ?? undefined : carbonMap ?? undefined}
+                  bumpMap={i === 0 ? pleatMaps?.bump ?? undefined : undefined}
+                  bumpScale={i === 0 ? 0.035 : 0}
+                  metalness={i === 1 ? v.cartMetal : 0.02}
+                  roughness={i === 0 ? 0.9 : i === 1 ? v.cartRough : 0.82}
                   transparent
                   depthWrite={false}
                   opacity={0}
                 />
               </mesh>
+              {/* moulded end caps — the "this is a replaceable part" cue */}
+              {[1.02, -1.02].map((dy, ci) => (
+                <mesh key={dy} position={[0, -0.42 + dy, 0]}>
+                  <cylinderGeometry args={[0.43, 0.43, 0.07, 40]} />
+                  <meshStandardMaterial
+                    ref={(el) => {
+                      capMatRefs.current[i][ci] = el;
+                    }}
+                    color={["#e3e1d8", "#23282e", "#0e1114"][i]}
+                    roughness={0.55}
+                    metalness={0.05}
+                    transparent
+                    depthWrite={false}
+                    opacity={0}
+                  />
+                </mesh>
+              ))}
               {/* hollow core the filtered water rises through (draws after the
                   cartridge so its glow reads through the ghosted media wall) */}
               <mesh position={[0, -0.42, 0]} renderOrder={2}>
                 <cylinderGeometry args={[0.085, 0.085, 2.08, 20]} />
+                {/* Phase 3: the core is RISING WATER — animated streak map,
+                    scrolled in useFrame, not a flat glowing stick */}
                 <meshStandardMaterial
                   ref={(el) => {
                     coreMats.current[i] = el;
                   }}
-                  color="#0f6f8e"
+                  color="#8fd8ec"
+                  map={coreFlowMap ?? undefined}
                   emissive="#29c2ee"
-                  emissiveIntensity={0.9}
+                  emissiveMap={coreFlowMap ?? undefined}
+                  emissiveIntensity={1.15}
                   transparent
                   depthWrite={false}
                   opacity={0}
@@ -778,7 +1013,8 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
             </group>
           )}
 
-          {/* radial-flow guides: DOWN the annulus, IN through the wall, UP the core */}
+          {/* radial-flow guides: DOWN the annulus, IN through the wall, UP the
+              core — Phase 3: soft water STREAKS (capsules), not bare cones */}
           {!hidden("flow") && (
             <group
               ref={(el) => {
@@ -786,31 +1022,52 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
               }}
               visible={false}
             >
-              {/* annulus down-arrows (staggered around the front half) */}
+              {/* annulus streaks (staggered around the front half) */}
               {[
                 [0.52, 0.42, 0.12],
                 [-0.44, -0.02, 0.3],
                 [0.28, -0.5, 0.45],
               ].map((pos, k) => (
-                <mesh key={k} position={pos as [number, number, number]} rotation={[Math.PI, 0, 0]}>
-                  <coneGeometry args={[0.06, 0.17, 12]} />
-                  <meshStandardMaterial color="#29c2ee" emissive="#29c2ee" emissiveIntensity={0.55} />
+                <mesh key={k} position={pos as [number, number, number]}>
+                  <capsuleGeometry args={[0.028, 0.17, 4, 12]} />
+                  <meshStandardMaterial
+                    color="#9fe8ff"
+                    emissive="#29c2ee"
+                    emissiveIntensity={0.8}
+                    transparent
+                    opacity={0.8}
+                    depthWrite={false}
+                  />
                 </mesh>
               ))}
-              {/* inward arrows punching through the media wall */}
+              {/* inward streaks punching through the media wall */}
               {[
                 [0.5, -0.85, 0.0],
                 [-0.5, -0.85, 0.0],
               ].map((pos, k) => (
-                <mesh key={k} position={pos as [number, number, number]} rotation={[0, 0, pos[0] > 0 ? Math.PI / 2 : -Math.PI / 2]}>
-                  <coneGeometry args={[0.05, 0.14, 12]} />
-                  <meshStandardMaterial color="#7fd8f5" emissive="#7fd8f5" emissiveIntensity={0.45} />
+                <mesh key={k} position={pos as [number, number, number]} rotation={[0, 0, Math.PI / 2]}>
+                  <capsuleGeometry args={[0.024, 0.13, 4, 12]} />
+                  <meshStandardMaterial
+                    color="#bfeefb"
+                    emissive="#7fd8f5"
+                    emissiveIntensity={0.6}
+                    transparent
+                    opacity={0.75}
+                    depthWrite={false}
+                  />
                 </mesh>
               ))}
-              {/* core up-arrow */}
+              {/* core up-streak */}
               <mesh position={[0, 0.62, 0]}>
-                <coneGeometry args={[0.07, 0.2, 12]} />
-                <meshStandardMaterial color="#29c2ee" emissive="#29c2ee" emissiveIntensity={0.7} />
+                <capsuleGeometry args={[0.04, 0.24, 4, 12]} />
+                <meshStandardMaterial
+                  color="#9fe8ff"
+                  emissive="#29c2ee"
+                  emissiveIntensity={1.0}
+                  transparent
+                  opacity={0.85}
+                  depthWrite={false}
+                />
               </mesh>
             </group>
           )}
@@ -871,6 +1128,7 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
 }
 
 export default function ChromeStage({ progress, active, sheetRatio, onReady }: Props) {
+  const dofRef = useRef<{ target?: THREE.Vector3; bokehScale: number; cocMaterial?: { worldFocusRange: number } } | null>(null);
   return (
     <Canvas
       frameloop={active ? "always" : "never"}
@@ -882,8 +1140,10 @@ export default function ChromeStage({ progress, active, sheetRatio, onReady }: P
       // the page CSS — one continuous space, no seam at the cross-fade.
       gl={{ alpha: false, antialias: true, powerPreference: "high-performance" }}
       onCreated={({ gl, scene }) => {
-        gl.toneMapping = THREE.ACESFilmicToneMapping;
-        gl.toneMappingExposure = 0.98;
+        // Phase 3: Khronos PBR Neutral — ACES washed the metals into "CG
+        // chrome"; Neutral keeps colour and contrast like product photography
+        gl.toneMapping = THREE.NeutralToneMapping;
+        gl.toneMappingExposure = 1.12;
         gl.setClearColor("#0a121b", 1);
         // far edges of the machine melt into the space's ambient tone —
         // barely reaches the assembly, only the pipe extremities at distance
@@ -909,6 +1169,7 @@ export default function ChromeStage({ progress, active, sheetRatio, onReady }: P
 
       <VesselAssembly progress={progress} />
       <Rig progress={progress} sheetRatio={sheetRatio} />
+      <FocusRig progress={progress} dof={dofRef} />
       <Ready onReady={onReady} />
       {typeof window !== "undefined" && new URLSearchParams(window.location.search).has("ngdbgray") && <DebugRay />}
 
@@ -918,7 +1179,13 @@ export default function ChromeStage({ progress, active, sheetRatio, onReady }: P
 
       {!hidden("post") && (
         <EffectComposer>
-          <Bloom intensity={0.42} luminanceThreshold={0.82} luminanceSmoothing={0.28} mipmapBlur />
+          {/* Phase 3 lens: focus rides the discussed part (FocusRig), off at
+              the trace dock */}
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          <DepthOfField ref={dofRef as any} target={[0, -0.1, 0]} focalLength={0.004} bokehScale={1.3} />
+          {/* bloom OFF the metal speculars (the #1 CG tell) — only genuinely
+              emissive things (rings, redox sparks) may glow */}
+          <Bloom intensity={0.34} luminanceThreshold={0.92} luminanceSmoothing={0.3} mipmapBlur />
           {/* lens fringe kept to the frame edges — dead-centre chrome stays clinically sharp */}
           <ChromaticAberration offset={CA_OFFSET} radialModulation modulationOffset={0.3} />
           <Vignette eskil={false} offset={0.26} darkness={0.55} />
