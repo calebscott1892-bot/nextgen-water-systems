@@ -109,8 +109,10 @@ export function LivingDrawing() {
       .map((s) => root.querySelector<HTMLElement>(s))
       .filter(Boolean) as HTMLElement[];
 
-    // static fully-drawn plate for reduced motion
+    // static fully-drawn plate for reduced motion. Also clear any stale tilt a
+    // prior non-reduced fallback run wrote (raw setAttribute survives revert).
     if (reduced) {
+      if (col) col.removeAttribute("transform");
       paper.forEach((e) => (e.style.opacity = "1"));
       if (shade) shade.style.opacity = "0";
       if (beds) beds.style.opacity = "1";

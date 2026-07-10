@@ -52,9 +52,14 @@ void main(){
   float mote = smoothstep(0.62, 0.68, g) * (1.0 - purity);
   col = mix(col, vec3(0.13, 0.11, 0.06), mote * 0.85);
 
-  // flow streaks follow the true path: DOWN in the annulus, UP the core
-  float dir = mix(1.0, -1.0, step(d, 0.1)); // +t = down (annulus), -t = up (core)
-  float streak = fbm(vec2(uv.x * aspect * 3.0, uv.y * 5.0 + uTime * 0.8 * dir));
+  // flow streaks follow the true path: DOWN in the annulus, UP the core.
+  // Two cross-faded layers (not a step-flipped time term, which tears a hard
+  // vertical seam as the fields diverge); the up-zone width matches the DRAWN
+  // core channel (half-width ~0.052 of the clip), not an arbitrary band.
+  float wUp = 1.0 - smoothstep(0.045, 0.07, d);
+  float sDown = fbm(vec2(uv.x * aspect * 3.0, uv.y * 5.0 + uTime * 0.8));
+  float sUp = fbm(vec2(uv.x * aspect * 3.0 + 7.3, uv.y * 5.0 - uTime * 0.8));
+  float streak = mix(sDown, sUp, wUp);
   col += (streak - 0.5) * mix(0.16, 0.08, purity);
 
   // caustic shimmer where the water has cleared

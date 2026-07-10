@@ -189,6 +189,7 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
   const cartGroups = useRef<(THREE.Group | null)[]>([]);
   const boreLight = useRef<THREE.PointLight>(null);
   const actionRefs = useRef<(THREE.Mesh | null)[][]>([[], [], []]);
+  const actionGroups = useRef<(THREE.Group | null)[]>([]);
   const sparkRefs = useRef<(THREE.Mesh | null)[]>([]);
   const [labelsOn, setLabelsOn] = useState(false);
 
@@ -284,14 +285,16 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
      V2: contaminant ions drift onto the granule bed while redox sparks fire
          (electron-transfer micro-events on the copper-zinc surface).
      V3: pale scale flecks shrink away as the media captures them. */
+  // depthWrite:false everywhere (review-confirmed): invisible transparent
+  // spheres must not write depth into the pass and punch holes in ghosts
   const actionMats = useMemo(
     () => [
       [
-        new THREE.MeshStandardMaterial({ color: "#b3552e", roughness: 0.8, transparent: true, opacity: 0 }),
-        new THREE.MeshStandardMaterial({ color: "#8a8378", roughness: 0.85, transparent: true, opacity: 0 }),
+        new THREE.MeshStandardMaterial({ color: "#b3552e", roughness: 0.8, transparent: true, opacity: 0, depthWrite: false }),
+        new THREE.MeshStandardMaterial({ color: "#8a8378", roughness: 0.85, transparent: true, opacity: 0, depthWrite: false }),
       ],
       [
-        new THREE.MeshStandardMaterial({ color: "#3a4149", roughness: 0.6, transparent: true, opacity: 0 }),
+        new THREE.MeshStandardMaterial({ color: "#3a4149", roughness: 0.6, transparent: true, opacity: 0, depthWrite: false }),
         new THREE.MeshStandardMaterial({
           color: "#7fe4ff",
           emissive: "#29c2ee",
@@ -299,9 +302,10 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
           toneMapped: false,
           transparent: true,
           opacity: 0,
+          depthWrite: false,
         }),
       ],
-      [new THREE.MeshStandardMaterial({ color: "#e8ecef", roughness: 0.5, transparent: true, opacity: 0 })],
+      [new THREE.MeshStandardMaterial({ color: "#e8ecef", roughness: 0.5, transparent: true, opacity: 0, depthWrite: false })],
     ],
     [],
   );
@@ -376,7 +380,10 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
       const fg = flowGroups.current[i];
       if (fg) fg.visible = w[i] > 0.05;
       // interior action particles (radial capture motion, per the reference doc)
+      // — the whole group is visibility-gated so 0-opacity spheres don't draw
       actionMats[i].forEach((m) => (m.opacity = w[i]));
+      const ag = actionGroups.current[i];
+      if (ag) ag.visible = w[i] > 0.02;
       if (w[i] > 0.02) {
         const tt = state.clock.elapsedTime;
         actionSpecs[i].forEach((s, k) => {
@@ -400,7 +407,8 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
     }
 
     // KDF redox sparks — brief electron-transfer flashes on the granule bed
-    {
+    // (only animated while V2's window is open; the group is hidden otherwise)
+    if (w[1] > 0.02) {
       const tt = state.clock.elapsedTime;
       sparkSpecs.forEach((s, k) => {
         const m = sparkRefs.current[k];
@@ -600,9 +608,15 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
             </group>
           )}
 
-          {/* interior actions — the "what working looks like" micro-events */}
+          {/* interior actions — the "what working looks like" micro-events
+              (visibility-gated per window in useFrame) */}
           {!hidden("actions") && (
-            <>
+            <group
+              ref={(el) => {
+                actionGroups.current[i] = el;
+              }}
+              visible={false}
+            >
               {actionSpecs[i].map((s, k) => (
                 <mesh
                   key={`a${k}`}
@@ -627,7 +641,7 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
                     scale={0.01}
                   />
                 ))}
-            </>
+            </group>
           )}
 
           {/* cyan brand ring seated at the sump base */}
