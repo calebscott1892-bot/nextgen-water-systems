@@ -66,6 +66,18 @@ Restart the static server after every rebuild (stale hashed chunks 404 as a
 furniture-only "blank"), and retry captures — a blank ≈114 KB frame means the
 HDR-env suspense lost the race with the time budget.
 
+Rig gotchas, hard-won:
+
+- Chrome headless clamps `--window-size` **width to ~500 minimum** — a
+  "390-wide mobile" capture silently lays out at ~515 px and crops the PNG,
+  manufacturing overflow bugs that don't exist. Portrait: use `500,1082`.
+- Captures of the **live** site want `--virtual-time-budget=90000` (the
+  network HDR fetch races harder than localhost).
+- Serve the export nested to match basePath
+  (`<dir>/nextgen-water-systems/`) — serving `out/` at root 404s (≈8 KB PNG).
+- After pushing, match the Actions run on **headSha** — `gh run list` right
+  away happily reports the *previous* run's `completed success`.
+
 ## Run / deploy
 
 ```bash
