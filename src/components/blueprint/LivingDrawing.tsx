@@ -5,11 +5,12 @@ import { useEffect, useRef, useState } from "react";
 import { gsap, ScrollTrigger } from "@/lib/gsap";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 import {
-  COLUMN_PATHS,
-  CONSTRUCTION_PATHS,
-  BEDS,
-  SILHOUETTE_D,
-  BOM_BALLOONS,
+  ASSEMBLY_PATHS,
+  ASSEMBLY_CONSTRUCTION,
+  ASSEMBLY_D,
+  ASSEMBLY_BALLOONS,
+  VESSEL_BEDS,
+  VESSEL_CX,
   BOM_ROWS,
   REVISIONS,
 } from "./columnPaths";
@@ -35,10 +36,10 @@ function hasWebGL(): boolean {
  * pinned ScrollTrigger drives all of it (reverse-clean). Reduced motion → the
  * fully-drawn static plate.
  *
- * ⚠️ Every figure is PLACEHOLDER, flagged (*). First-pass GA profile.
+ * ⚠️ Every figure is PLACEHOLDER, flagged (*). GA of the real 3-vessel machine.
  */
-const INK = [...COLUMN_PATHS].filter((p) => p.id !== "dim-height").sort((a, b) => a.order - b.order);
-const DIM = COLUMN_PATHS.find((p) => p.id === "dim-height")!;
+const INK = [...ASSEMBLY_PATHS].filter((p) => p.id !== "dim-width").sort((a, b) => a.order - b.order);
+const DIM = ASSEMBLY_PATHS.find((p) => p.id === "dim-width")!;
 
 const STROKE: Record<string, [string, number]> = {
   centre: ["#86a8c3", 1],
@@ -108,8 +109,10 @@ export function LivingDrawing() {
       .map((s) => root.querySelector<HTMLElement>(s))
       .filter(Boolean) as HTMLElement[];
 
-    // static fully-drawn plate for reduced motion
+    // static fully-drawn plate for reduced motion. Also clear any stale tilt a
+    // prior non-reduced fallback run wrote (raw setAttribute survives revert).
     if (reduced) {
+      if (col) col.removeAttribute("transform");
       paper.forEach((e) => (e.style.opacity = "1"));
       if (shade) shade.style.opacity = "0";
       if (beds) beds.style.opacity = "1";
@@ -137,9 +140,18 @@ export function LivingDrawing() {
       // from driving tl.progress with a there-and-back scalar (see onUpdate).
       const tl = gsap.timeline({ paused: true, defaults: { ease: "none" } });
 
-      // 0 — the cyan scan-line reads the unit off into the drawing
+      // 0 — the cyan scan-line reads the unit off into the drawing.
+      // immediateRender:false is load-bearing: without it the from-state (a
+      // visible cyan line) renders the moment the paused timeline is built —
+      // the "clumsy pre-roll line" a design review rightly called out.
       const scan = q<SVGRectElement>(".jd-scan");
-      if (scan) tl.fromTo(scan, { attr: { y: 96 }, opacity: 0.85 }, { attr: { y: 750 }, opacity: 0, duration: 0.08, ease: "none" }, 0.02);
+      if (scan)
+        tl.fromTo(
+          scan,
+          { attr: { y: 210 }, opacity: 0.85 },
+          { attr: { y: 600 }, opacity: 0, duration: 0.08, ease: "none", immediateRender: false },
+          0.02,
+        );
       // 1 — construction "measuring" lays down over the chrome on the void
       con.forEach((p, i) => tl.to(p, { strokeDashoffset: 0, duration: 0.05, ease: "power1.out" }, 0.04 + i * 0.018));
       // 2 — WHITE ink traces over the live chrome, STRICTLY sequential so the
@@ -161,14 +173,10 @@ export function LivingDrawing() {
       // 6 — revision rows accrue (the progress spine, driven from the data)
       revRows.forEach((r, i) => tl.to(r, { opacity: 1, duration: 0.04 }, REVISIONS[i]?.at ?? 0.5));
 
-      ScrollTrigger.create({
-        trigger: root,
-        start: "top top",
-        end: "bottom bottom",
-        scrub: 0.6,
-        invalidateOnRefresh: true,
-        onUpdate: (self) => {
-          const p = self.progress;
+      // one frame-state function drives everything (scroll AND the ?ngjp freeze,
+      // which must apply without any scroll event ever firing)
+      const applyFrame = (p: number) => {
+        {
           // The 3D journey owns the whole scroll (orbit → dock → rotate → through
           // → split → settle). The blueprint round trip is ONE early act: a
           // windowed there-and-back over p∈[0.10, 0.33] — starting only once the
@@ -181,7 +189,7 @@ export function LivingDrawing() {
 
           // 3D reads the raw journey scalar; the canvas hides only while the
           // vellum plate is full (so the drawing reads as ink, not ink-over-chrome)
-          u3d.current = DBG_JP ?? p;
+          u3d.current = p;
           if (canvasWrapRef.current) {
             canvasWrapRef.current.style.opacity = String(
               gsap.utils.clamp(0, 1, gsap.utils.mapRange(0.46, 0.62, 1, 0, bpU)),
@@ -189,13 +197,20 @@ export function LivingDrawing() {
           }
 
           // fallback-only parallax tilt on the SVG still (when there's no live 3D
-          // chrome to register against); with WebGL the ink must stay un-skewed
-          if (col && !webgl) {
-            const t = gsap.utils.clamp(0, 1, gsap.utils.mapRange(0, 0.24, 1, 0, bpU));
-            col.setAttribute(
-              "transform",
-              `translate(480 446) skewY(${-2.4 * t}) scale(${1 + 0.05 * t}, ${1 + 0.02 * t}) translate(-480 -446)`,
-            );
+          // chrome to register against); with WebGL the ink must stay un-skewed.
+          // The else-branch is load-bearing (review-confirmed): the effect first
+          // runs with webgl=false and leaves a raw stale transform attribute that
+          // ctx.revert() cannot undo — the webgl run must actively clear it.
+          if (col) {
+            if (!webgl) {
+              const t = gsap.utils.clamp(0, 1, gsap.utils.mapRange(0, 0.24, 1, 0, bpU));
+              col.setAttribute(
+                "transform",
+                `translate(540 440) skewY(${-2.4 * t}) scale(${1 + 0.05 * t}, ${1 + 0.02 * t}) translate(-540 -440)`,
+              );
+            } else {
+              col.removeAttribute("transform");
+            }
           }
 
           // pen-tip rides the active stroke head (and rides it backward on revert)
@@ -214,8 +229,23 @@ export function LivingDrawing() {
               tip.setAttribute("transform", `translate(${pt.x} ${pt.y})`);
             }
           }
-        },
+        }
+      };
+
+      const st = ScrollTrigger.create({
+        trigger: root,
+        start: "top top",
+        end: "bottom bottom",
+        scrub: 0.6,
+        invalidateOnRefresh: true,
+        // ?ngjp freezes the WHOLE frame state (ink + cross-fade + 3D) at one
+        // scalar, so a capture is WYSIWYG of the real scroll at that point
+        onUpdate: (self) => applyFrame(DBG_JP ?? self.progress),
       });
+      // apply the initial frame immediately — ScrollTrigger doesn't fire
+      // onUpdate at creation, and the ?ngjp freeze must work with zero scroll.
+      // Seed from st.progress (not 0) so scroll-restored loads land mid-journey.
+      applyFrame(DBG_JP ?? st.progress);
     }, root);
 
     return () => ctx.revert();
@@ -276,7 +306,7 @@ export function LivingDrawing() {
                 <circle cx="5" cy="10" r="0.9" fill="#28506f" opacity="0.5" />
               </pattern>
               <clipPath id="bodyClip">
-                <path d={SILHOUETTE_D} />
+                <path d={ASSEMBLY_D} />
               </clipPath>
               <pattern id="grid5" width="20" height="20" patternUnits="userSpaceOnUse">
                 <path d="M20 0H0V20" fill="none" stroke="#0f2c3b" strokeWidth="0.4" opacity="0.10" />
@@ -303,14 +333,15 @@ export function LivingDrawing() {
             <g className="jd-col">
               {/* shaded metal asset — what we meet before it becomes a drawing */}
               <g className="jd-shade">
-                <path d={SILHOUETTE_D} fill="url(#steel)" />
-                <rect x="455" y="100" width="50" height="34" fill="url(#steelCap)" />
-                <ellipse cx="455" cy="430" rx="10" ry="150" fill="#cfd8de" opacity="0.35" />
+                <path d={ASSEMBLY_D} fill="url(#steel)" />
+                {VESSEL_CX.map((cx) => (
+                  <ellipse key={cx} cx={cx - 28} cy="470" rx="9" ry="130" fill="#cfd8de" opacity="0.35" />
+                ))}
               </g>
 
               {/* construction geometry — the faint cyan set-up */}
               <g className="jd-construct">
-                {CONSTRUCTION_PATHS.map((c) => (
+                {ASSEMBLY_CONSTRUCTION.map((c) => (
                   <path
                     key={c.id}
                     data-con
@@ -325,10 +356,10 @@ export function LivingDrawing() {
                 ))}
               </g>
 
-              {/* hatched media beds */}
+              {/* hatched cartridge zones, one per vessel */}
               <g className="jd-beds" clipPath="url(#bodyClip)">
-                {BEDS.map((b) => (
-                  <rect key={b.id} x="324" y={b.y0} width="312" height={b.y1 - b.y0} fill={`url(#${b.hatch})`} />
+                {VESSEL_BEDS.map((b) => (
+                  <rect key={b.id} x={b.x0} y={b.y0} width={b.x1 - b.x0} height={b.y1 - b.y0} fill={`url(#${b.hatch})`} />
                 ))}
               </g>
 
@@ -361,17 +392,17 @@ export function LivingDrawing() {
                   strokeWidth="1.3"
                   vectorEffect="non-scaling-stroke"
                 />
-                <rect x="754" y="428" width="78" height="26" fill="url(#vellum)" />
-                <text x="793" y="446" className="jd-dim-t" textAnchor="middle">
-                  540 mm*
+                <rect x="498" y="623" width="84" height="24" fill="url(#vellum)" />
+                <text x="540" y="640" className="jd-dim-t" textAnchor="middle">
+                  1120 mm*
                 </text>
               </g>
 
-              {/* BOM balloons */}
+              {/* BOM balloons — above each vessel head, leader dropping to the cap */}
               <g className="jd-bom">
-                {BOM_BALLOONS.map((b) => (
+                {ASSEMBLY_BALLOONS.map((b) => (
                   <g key={b.n}>
-                    <line x1="624" y1={b.y} x2={b.x - 16} y2={b.y} stroke="#2f6e9c" strokeWidth="0.8" />
+                    <line x1={b.x} y1={b.y + 14} x2={b.x} y2={222} stroke="#2f6e9c" strokeWidth="0.8" />
                     <circle cx={b.x} cy={b.y} r="13" fill="url(#vellum)" stroke="#0f2c3b" strokeWidth="1.2" />
                     <text x={b.x} y={b.y + 4} className="jd-balloon-t" textAnchor="middle">
                       {b.n}
@@ -415,7 +446,7 @@ export function LivingDrawing() {
           <div className="jd-titleblock" aria-hidden="true">
             <div className="jd-tb-grid">
               <div className="jd-tb-co">NEXT GEN WATER SYSTEMS</div>
-              <div className="jd-tb-title">WHOLE-HOME FILTRATION COLUMN</div>
+              <div className="jd-tb-title">WHOLE-HOME FILTRATION — 3-VESSEL ASSEMBLY</div>
               <div className="jd-tb-cell">
                 <i>DWG NO</i>NGW-01 · 1 / 4
               </div>

@@ -14,7 +14,7 @@ export type Revision = { rev: string; sheet: string; desc: string; id: string };
 export const SITE_REVISIONS: Revision[] = [
   { rev: "D", sheet: "02", desc: "GENERAL NOTES", id: "plate-trust" },
   { rev: "E", sheet: "03", desc: "CONTAMINANT SCHEDULE", id: "plate-problem" },
-  { rev: "F", sheet: "04", desc: "FLOW TEST — 5 STAGES", id: "plate-flowtest" },
+  { rev: "F", sheet: "04", desc: "SECTION A–A — FLOW TEST", id: "plate-flowtest" },
   { rev: "G", sheet: "05", desc: "TEST SCHEDULE", id: "plate-benchmark" },
   { rev: "H", sheet: "06", desc: "APPROVALS BLOCK", id: "plate-rnd" },
   { rev: "J", sheet: "07", desc: "IN-SERVICE NOTES", id: "plate-benefits" },

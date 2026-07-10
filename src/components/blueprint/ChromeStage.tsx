@@ -8,26 +8,23 @@ import * as THREE from "three";
 import { asset } from "@/lib/asset";
 
 /**
- * The live NGW-01 + the full POV journey, fused with the blueprint round trip.
- * ONE scalar (raw scroll progress p) drives everything:
- *   0.00–0.10  hero + slow orbit (move around the unit)
+ * THE REAL MACHINE — NGW-01 as it actually is: three 20″×4.5″ vessels on a
+ * bracket/manifold, plumbed in series (Clear2O FHWR-3SI-20 architecture, no RO),
+ * rendered in the brand's brushed-steel language. ONE scalar (journey progress p)
+ * drives everything:
+ *   0.00–0.10  hero + slow drift (meet the assembly)
  *   0.10–0.33  front DOCK (held) — the SVG white-ink trace + plate run here
- *   0.33–0.42  re-skin to chrome + re-centre/grow to full size
- *   0.42–0.52  rotate onto its SIDE so the lid/top faces the viewer
- *   0.52–0.68  camera dives ON-AXIS down the bore; housing ghosts; stages part
- *   0.68–0.88  the labelled exploded assembly, side-on orbit
- *   0.88–1.00  reassemble + settle
+ *   0.33–0.44  re-frame, approach vessel 1
+ *   0.44–0.74  THE WATER RUN — visit V1 → V2 → V3; each sump ghosts in turn to
+ *              reveal its cartridge; flow guides read the true radial path
+ *              (down the annulus → in through the media wall → up the core)
+ *   0.74–0.90  pull back + service EXPLODE: heads lift, cartridges rise, labels
+ *   0.90–1.00  reassemble + settle
  *
- * The asset is a designed product: conical-shoulder crown + threaded inlet, a
- * cyan level-gauge sight window, sanitary clamp band, an asymmetric bypass
- * valve, drain valve + plinth feet, etch plate. Body-mounted kit fades with the
- * housing ghost; crown/base kit explodes with its cap.
+ * Stage order per the client's spec sheet: 1 graded sediment → 2 KDF 55/85 +
+ * coconut carbon (the redox bed) → 3 limescale-reduction carbon.
  */
 type Props = { progress: MutableRefObject<number>; active: boolean };
-
-// engineered detail kit (gauge, clamp band, bypass, drain, feet, crown, plate)
-const KIT_BODY = true;
-const KIT_CAPS = false;
 
 // DEV forensic (?nghide=a,b,c): knock out scene elements to bisect a rogue
 // frame. Namespaced key so real-world query params can't collide; inert
@@ -41,27 +38,30 @@ const hidden = (k: string) => HIDE.includes(k);
 const ss = (x: number, a: number, b: number) => THREE.MathUtils.smoothstep(x, a, b);
 const lerp = THREE.MathUtils.lerp;
 
-/* ---- camera rail (pos + look target), keyed to p ---- */
-type Key = { p: number; pos: [number, number, number]; tgt: [number, number, number] };
-const CAM: Key[] = [
-  { p: 0.0, pos: [2.6, -0.6, 8.8], tgt: [0, 0.3, 0] }, // hero
-  { p: 0.06, pos: [4.8, 0.8, 7.2], tgt: [0, 0, 0] }, // orbit around
-  { p: 0.1, pos: [0, 0.0, 8.2], tgt: [0, 0.3, 0] }, // front dock (trace)
-  { p: 0.33, pos: [0, 0.0, 8.2], tgt: [0, 0.3, 0] }, // hold dock until the plate fully exits
-  { p: 0.42, pos: [0, 0.1, 8.4], tgt: [0, 0, 0] }, // chrome back, full size
-  { p: 0.5, pos: [0, 0.2, 7.0], tgt: [0, 0, -1] }, // on its side, top toward us
-  { p: 0.57, pos: [0, 0.05, 3.2], tgt: [0, 0, -2.5] }, // dive into the top — the chamber tints
-  { p: 0.63, pos: [0, 0.12, 0.6], tgt: [0, 0, -2.5] }, // ON-AXIS down the bore, chambers passing
-  { p: 0.72, pos: [6.0, 1.1, 5.6], tgt: [0, 0, 0] }, // pull back through the split
-  { p: 0.8, pos: [9.2, 1.4, 4.0], tgt: [0, 0, 0] }, // arc out side-on — the split reads across
-  { p: 0.88, pos: [9.6, 2.6, -2.2], tgt: [0, 0, 0] }, // orbit around the exploded assembly
-  { p: 1.0, pos: [3.2, 0.4, 8.6], tgt: [0, 0.2, 0] }, // settle front, reassembled
-];
+/* ---- the three vessels (x spacing 1.9; sump r .62, head r .74) ---- */
+const VESSELS = [
+  { x: -1.9, n: "01", title: "Sediment", sub: "10/5/1µm 3-layer*", cart: "#e8ecee", cartMetal: 0.05, cartRough: 0.85 },
+  { x: 0.0, n: "02", title: "KDF 55/85 + carbon", sub: "heavy metals · chlorine*", cart: "#a97142", cartMetal: 0.65, cartRough: 0.5 },
+  { x: 1.9, n: "03", title: "Limescale carbon", sub: "scale · taste · 1µm*", cart: "#232c33", cartMetal: 0.1, cartRough: 0.7 },
+] as const;
 
-function seg(p: number): [Key, Key] {
-  for (let i = 0; i < CAM.length - 1; i++) if (p <= CAM[i + 1].p) return [CAM[i], CAM[i + 1]];
-  return [CAM[CAM.length - 2], CAM[CAM.length - 1]];
+/** per-vessel interior windows — the camera parks at each vessel while its
+ *  sump ghosts. Shared by the assembly, the lights and the camera breath. */
+function interiorWindows(p: number): [number, number, number] {
+  const w1 = ss(p, 0.44, 0.48) * (1 - ss(p, 0.55, 0.58));
+  const w2 = ss(p, 0.55, 0.58) * (1 - ss(p, 0.645, 0.675));
+  const w3 = ss(p, 0.645, 0.675) * (1 - ss(p, 0.74, 0.78));
+  return [w1, w2, w3];
 }
+const interiorMax = (p: number) => Math.max(...interiorWindows(p));
+
+/* material recipes — one story: brushed steel sumps, dark machined heads.
+   NOTE (review-confirmed): per-material envMapIntensity is a no-op under
+   scene.environment (three r163+) — env strength comes solely from
+   scene.environmentIntensity (<Environment> prop, scrubbed in JourneyLights). */
+const STEEL = { color: "#b1bcc6", metalness: 1, roughness: 0.26, clearcoat: 1, clearcoatRoughness: 0.09 } as const;
+const CAPS = { color: "#79848e", metalness: 1, roughness: 0.3, clearcoat: 0.6, clearcoatRoughness: 0.22 } as const;
+const MACHINED = { color: "#2b333b", metalness: 0.95, roughness: 0.42 } as const;
 
 /** DEV forensic (?ngdbgray): raycast from screen centre and log what's actually
  *  in front of the camera — for diagnosing "mystery surface" frames. */
@@ -97,10 +97,10 @@ function DebugRay() {
   return null;
 }
 
-/** Studio lights that DIM during the interior dive — directionals have no
- *  shadows, so without this they flood the vessel interior and five stacked
- *  translucent stages wash out to milk. Inside a sealed steel vessel it should
- *  be dark: the cyan bore-glow becomes the only meaningful source. */
+/** Studio lights that DIM while the camera is inside a ghosted vessel —
+ *  directionals have no shadows, so without this they flood the interior.
+ *  scene.environmentIntensity is the ONE env knob that actually reaches the
+ *  GPU under scene.environment. */
 function JourneyLights({ progress }: { progress: MutableRefObject<number> }) {
   const amb = useRef<THREE.AmbientLight>(null);
   const key = useRef<THREE.DirectionalLight>(null);
@@ -108,18 +108,13 @@ function JourneyLights({ progress }: { progress: MutableRefObject<number> }) {
   const fill = useRef<THREE.DirectionalLight>(null);
   const { scene } = useThree();
   useFrame(() => {
-    const p = progress.current;
-    const through = ss(p, 0.52, 0.58) * (1 - ss(p, 0.66, 0.72));
-    const dimmed = 1 - through * 0.82;
+    const through = interiorMax(progress.current);
+    const dimmed = 1 - through * 0.8;
     if (amb.current) amb.current.intensity = 0.12 * dimmed;
     if (key.current) key.current.intensity = 0.85 * dimmed;
     if (rim.current) rim.current.intensity = 0.6 * dimmed;
     if (fill.current) fill.current.intensity = 0.22 * dimmed;
-    // the ONE global knob that actually kills the interior wash: HDR softboxes
-    // in the env map are tens of units bright, so even tiny per-material
-    // envMapIntensity residues re-light the ghosted stack. Kill env globally
-    // inside the vessel; everything restores on the pull-out.
-    scene.environmentIntensity = 0.82 * (1 - through * 0.97);
+    scene.environmentIntensity = 0.82 * (1 - through * 0.95);
   });
   return (
     <>
@@ -132,9 +127,34 @@ function JourneyLights({ progress }: { progress: MutableRefObject<number> }) {
   );
 }
 
+/* ---- camera rail (pos + look target), keyed to p ---- */
+type Key = { p: number; pos: [number, number, number]; tgt: [number, number, number] };
+const CAM: Key[] = [
+  { p: 0.0, pos: [3.4, -0.5, 8.6], tgt: [0, 0.15, 0] }, // hero ¾
+  { p: 0.06, pos: [5.2, 1.0, 6.6], tgt: [0, 0, 0] }, // drift around
+  { p: 0.1, pos: [0, 0.12, 8.8], tgt: [0, 0.12, 0] }, // front dock (trace)
+  { p: 0.33, pos: [0, 0.12, 8.8], tgt: [0, 0.12, 0] }, // hold dock until the plate exits
+  { p: 0.4, pos: [0, 0.1, 6.8], tgt: [0, 0, 0] }, // re-frame, push in
+  { p: 0.44, pos: [-1.9, 0.05, 4.6], tgt: [-1.9, -0.1, 0] }, // arrive V1
+  { p: 0.55, pos: [-1.9, -0.05, 4.1], tgt: [-1.9, -0.15, 0] }, // slow push through V1
+  { p: 0.58, pos: [0, 0.05, 4.6], tgt: [0, -0.1, 0] }, // slide to V2 (KDF)
+  { p: 0.645, pos: [0, -0.05, 4.1], tgt: [0, -0.15, 0] }, // push through V2
+  { p: 0.675, pos: [1.9, 0.05, 4.6], tgt: [1.9, -0.1, 0] }, // slide to V3
+  { p: 0.74, pos: [1.9, -0.05, 4.1], tgt: [1.9, -0.15, 0] }, // push through V3
+  { p: 0.8, pos: [5.4, 1.6, 5.6], tgt: [0, 0.3, 0] }, // pull back
+  { p: 0.84, pos: [5.0, 2.6, 6.2], tgt: [0, 0.35, 0] }, // rise…
+  { p: 0.88, pos: [4.2, 3.2, 6.0], tgt: [0, 0.4, 0] }, // …to the elevated service view (all three, parts lifted)
+  { p: 1.0, pos: [2.8, 0.15, 8.8], tgt: [0, 0.12, 0] }, // settle front, reassembled
+];
+
+function seg(p: number): [Key, Key] {
+  for (let i = 0; i < CAM.length - 1; i++) if (p <= CAM[i + 1].p) return [CAM[i], CAM[i + 1]];
+  return [CAM[CAM.length - 2], CAM[CAM.length - 1]];
+}
+
 function Rig({ progress }: { progress: MutableRefObject<number> }) {
   const { camera } = useThree();
-  const tgt = useRef(new THREE.Vector3(0, 0.3, 0));
+  const tgt = useRef(new THREE.Vector3(0, 0.12, 0));
   useFrame(() => {
     const p = progress.current;
     const [a, b] = seg(p);
@@ -146,10 +166,9 @@ function Rig({ progress }: { progress: MutableRefObject<number> }) {
     tgt.current.set(lerp(a.tgt[0], b.tgt[0], e), lerp(a.tgt[1], b.tgt[1], e), lerp(a.tgt[2], b.tgt[2], e));
     camera.up.set(0, 1, 0);
     camera.lookAt(tgt.current);
-    // subtle dolly-zoom "breath" — the lens pushes in through the on-axis dive
+    // subtle dolly-zoom "breath" — the lens pushes in at each vessel visit
     const cam = camera as THREE.PerspectiveCamera;
-    const dive = ss(p, 0.5, 0.62) * (1 - ss(p, 0.66, 0.74));
-    const fov = 38 - dive * 7;
+    const fov = 38 - interiorMax(p) * 5;
     if (Math.abs(cam.fov - fov) > 0.01) {
       cam.fov = fov;
       cam.updateProjectionMatrix();
@@ -158,71 +177,25 @@ function Rig({ progress }: { progress: MutableRefObject<number> }) {
   return null;
 }
 
-const STAGES = [
-  { y: -1.6, color: "#aab4bc", n: "01", title: "Sediment", sub: "20µm pre-filter*" },
-  { y: -0.8, color: "#3c444c", n: "02", title: "Carbon block", sub: "chlorine · taste*" },
-  { y: 0.0, color: "#2b6a92", n: "03", title: "RO membrane", sub: "lead · PFAS*" },
-  { y: 0.8, color: "#4f93b8", n: "04", title: "Post-carbon", sub: "final polish*" },
-  { y: 1.6, color: "#29c2ee", n: "05", title: "Re-mineralise", sub: "balanced pH*" },
-];
-
-/* material recipes — one story: brushed steel body, dark machined accents.
-   NOTE (review-confirmed): per-material envMapIntensity is a no-op under
-   scene.environment (three r163+) — env strength comes solely from
-   scene.environmentIntensity (<Environment> prop, scrubbed in JourneyLights). */
-const STEEL = { color: "#b1bcc6", metalness: 1, roughness: 0.26, clearcoat: 1, clearcoatRoughness: 0.09 } as const;
-const CAPS = { color: "#828d97", metalness: 1, roughness: 0.27, clearcoat: 0.65, clearcoatRoughness: 0.2 } as const;
-const MACHINED = { color: "#2b333b", metalness: 0.95, roughness: 0.42 } as const;
-
-// parsed once — Color.set(cssString) per frame costs regex + sRGB pow per channel
-const STAGE_COLORS = STAGES.map((s) => new THREE.Color(s.color));
-
-function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
-  const group = useRef<THREE.Group>(null);
-  const housingMat = useRef<THREE.MeshPhysicalMaterial>(null);
-  const glassMat = useRef<THREE.MeshPhysicalMaterial>(null);
-  const stageRefs = useRef<(THREE.Group | null)[]>([]);
-  const stageMatRefs = useRef<(THREE.MeshStandardMaterial | null)[]>([]);
-  const kitMats = useRef<(THREE.Material & { opacity: number; transparent: boolean; depthWrite: boolean })[]>([]);
-  const topCap = useRef<THREE.Group>(null);
-  const botCap = useRef<THREE.Group>(null);
-  const topCapMat = useRef<THREE.MeshPhysicalMaterial>(null);
-  const botCapMat = useRef<THREE.MeshPhysicalMaterial>(null);
-  const ringMat = useRef<THREE.MeshStandardMaterial>(null);
+function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
+  const assy = useRef<THREE.Group>(null);
+  const sumpMats = useRef<(THREE.MeshPhysicalMaterial | null)[]>([]);
+  const domeMats = useRef<(THREE.MeshPhysicalMaterial | null)[]>([]);
+  const cartMats = useRef<(THREE.MeshStandardMaterial | null)[]>([]);
+  const coreMats = useRef<(THREE.MeshStandardMaterial | null)[]>([]);
+  const flowGroups = useRef<(THREE.Group | null)[]>([]);
+  const ringMats = useRef<(THREE.MeshStandardMaterial | null)[]>([]);
+  const headGroups = useRef<(THREE.Group | null)[]>([]);
+  const cartGroups = useRef<(THREE.Group | null)[]>([]);
   const boreLight = useRef<THREE.PointLight>(null);
+  const actionRefs = useRef<(THREE.Mesh | null)[][]>([[], [], []]);
+  const actionGroups = useRef<(THREE.Group | null)[]>([]);
+  const sparkRefs = useRef<(THREE.Mesh | null)[]>([]);
   const [labelsOn, setLabelsOn] = useState(false);
 
-  const kitMat = (el: THREE.Material | null) => {
-    if (el && !kitMats.current.includes(el as never)) kitMats.current.push(el as never);
-  };
-
-  const housingGeo = useMemo(() => {
-    // KNOWN-GOOD committed profile. Do NOT reprofile this lathe casually: two
-    // separate attempts (exact duplicate corner points, and a micro-chamfered
-    // conical-crown variant) both blanked the ENTIRE frame deterministically in
-    // every browser — bisected to this array alone. Root cause unresolved;
-    // investigate in isolation before touching these points again.
-    const pts = [
-      new THREE.Vector2(0.0, -2.0),
-      new THREE.Vector2(0.94, -2.0),
-      new THREE.Vector2(0.98, -1.82),
-      new THREE.Vector2(0.98, -1.5),
-      new THREE.Vector2(0.9, -1.42),
-      new THREE.Vector2(0.9, 1.42),
-      new THREE.Vector2(0.98, 1.5),
-      new THREE.Vector2(0.98, 1.82),
-      new THREE.Vector2(0.82, 2.04),
-      new THREE.Vector2(0.42, 2.1),
-      new THREE.Vector2(0.36, 2.36),
-      new THREE.Vector2(0.34, 2.52),
-      new THREE.Vector2(0.0, 2.54),
-    ];
-    return new THREE.LatheGeometry(pts, 96);
-  }, []);
-
-  // procedural micro-roughness — the biggest realism lever: real steel is never a
-  // perfect mirror. Fine grayscale noise + faint vertical brush streaks break the
-  // reflection into physical brushed metal (multiplies the roughness scalar).
+  // procedural micro-roughness — real steel is never a perfect mirror. Fine
+  // grayscale noise + faint vertical brush streaks break the reflection into
+  // physical brushed metal (multiplies the roughness scalar).
   const roughMap = useMemo(() => {
     if (typeof document === "undefined") return null;
     const s = 512;
@@ -248,14 +221,13 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
       }
     const tex = new THREE.CanvasTexture(cv);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(2, 6);
+    tex.repeat.set(2, 3);
     tex.anisotropy = 4;
     return tex;
   }, []);
 
-  // brushed-grain bump — hairline vertical strokes of varying strength give the
-  // steel a tactile machined grain (light catches individual brush lines). Kept
-  // as a classic bumpMap (cheap, universally supported — no anisotropy ext).
+  // brushed-grain bump — hairline vertical strokes give the steel a tactile
+  // machined grain (light catches individual brush lines)
   const bumpMap = useMemo(() => {
     if (typeof document === "undefined") return null;
     const s = 512;
@@ -263,11 +235,11 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
     cv.width = cv.height = s;
     const g = cv.getContext("2d");
     if (!g) return null;
-    g.fillStyle = "#808080"; // neutral height
+    g.fillStyle = "#808080";
     g.fillRect(0, 0, s, s);
     for (let x = 0; x < s; x++) {
       if (Math.random() < 0.6) {
-        const tone = 128 + (Math.random() - 0.5) * 44; // ±22 around neutral
+        const tone = 128 + (Math.random() - 0.5) * 44;
         g.globalAlpha = 0.25 + Math.random() * 0.5;
         g.strokeStyle = `rgb(${tone | 0},${tone | 0},${tone | 0})`;
         g.beginPath();
@@ -279,291 +251,414 @@ function ChromeColumn({ progress }: { progress: MutableRefObject<number> }) {
     }
     const tex = new THREE.CanvasTexture(cv);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(3, 4);
+    tex.repeat.set(3, 2);
     tex.anisotropy = 4;
     return tex;
   }, []);
 
+  // granule bed for the KDF cartridge — black GAC + copper body + glinting
+  // brass KDF flecks (the §A-KDF "bed of loose granules" read)
+  const granuleMap = useMemo(() => {
+    if (typeof document === "undefined") return null;
+    const s = 256;
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = s;
+    const g = cv.getContext("2d");
+    if (!g) return null;
+    g.fillStyle = "#7c4c28";
+    g.fillRect(0, 0, s, s);
+    for (let k = 0; k < 2400; k++) {
+      const r = Math.random();
+      g.fillStyle = r < 0.48 ? "#14181d" : r < 0.76 ? "#a97142" : "#e2a55e";
+      const sz = 1 + Math.random() * 2.4;
+      g.fillRect(Math.random() * s, Math.random() * s, sz, sz);
+    }
+    const tex = new THREE.CanvasTexture(cv);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(3, 3);
+    tex.anisotropy = 4;
+    return tex;
+  }, []);
+
+  /* ---- per-vessel interior ACTIONS (the doc's "what working looks like") ----
+     V1: rust/silt particles spiral inward and decelerate INTO the fibre mat.
+     V2: contaminant ions drift onto the granule bed while redox sparks fire
+         (electron-transfer micro-events on the copper-zinc surface).
+     V3: pale scale flecks shrink away as the media captures them. */
+  // depthWrite:false everywhere (review-confirmed): invisible transparent
+  // spheres must not write depth into the pass and punch holes in ghosts
+  const actionMats = useMemo(
+    () => [
+      [
+        new THREE.MeshStandardMaterial({ color: "#b3552e", roughness: 0.8, transparent: true, opacity: 0, depthWrite: false }),
+        new THREE.MeshStandardMaterial({ color: "#8a8378", roughness: 0.85, transparent: true, opacity: 0, depthWrite: false }),
+      ],
+      [
+        new THREE.MeshStandardMaterial({ color: "#3a4149", roughness: 0.6, transparent: true, opacity: 0, depthWrite: false }),
+        new THREE.MeshStandardMaterial({
+          color: "#7fe4ff",
+          emissive: "#29c2ee",
+          emissiveIntensity: 2.4,
+          toneMapped: false,
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
+        }),
+      ],
+      [new THREE.MeshStandardMaterial({ color: "#e8ecef", roughness: 0.5, transparent: true, opacity: 0, depthWrite: false })],
+    ],
+    [],
+  );
+  type ASpec = { angle: number; phase: number; speed: number; y: number; size: number; mi: number };
+  const actionSpecs = useMemo<ASpec[][]>(() => {
+    const R = Math.random;
+    const mk = (n: number, speed: [number, number], size: [number, number], twoMats: boolean): ASpec[] =>
+      Array.from({ length: n }, () => ({
+        angle: R() * Math.PI * 2,
+        phase: R(),
+        speed: speed[0] + R() * (speed[1] - speed[0]),
+        y: -1.15 + R() * 1.45,
+        size: size[0] + R() * (size[1] - size[0]),
+        mi: twoMats && R() > 0.55 ? 1 : 0,
+      }));
+    return [mk(12, [0.1, 0.18], [0.022, 0.046], true), mk(10, [0.12, 0.2], [0.02, 0.04], false), mk(8, [0.07, 0.12], [0.024, 0.044], false)];
+  }, []);
+  const sparkSpecs = useMemo(
+    () =>
+      Array.from({ length: 8 }, (_, k) => ({
+        angle: (k / 8) * Math.PI * 2 + Math.random() * 0.5,
+        y: -1.05 + (k / 8) * 1.35 + Math.random() * 0.15,
+        phase: Math.random() * Math.PI * 2,
+        freq: 1.6 + Math.random() * 1.3,
+      })),
+    [],
+  );
+  const sphereGeo = useMemo(() => new THREE.SphereGeometry(1, 10, 8), []);
+
   useFrame((state) => {
     const p = progress.current;
-    const g = group.current;
-    const dock = ss(p, 0.04, 0.1); // settled to dock (spin stops BEFORE the trace)
-    const reg = ss(p, 0.33, 0.42); // dock framing → journey framing (after the plate exits)
-    const onSide = ss(p, 0.42, 0.52); // rotate onto its side, lid toward viewer
-    const through = ss(p, 0.52, 0.58) * (1 - ss(p, 0.66, 0.72)); // interior-pass window
-    const ex = ss(p, 0.58, 0.82); // split apart (parts already parting as the camera arrives)
-    const reform = ss(p, 0.88, 0.98); // reassemble + right itself
-    const explode = ex * (1 - reform);
+    const g = assy.current;
+    const dock = ss(p, 0.04, 0.1); // settled to dock (drift stops BEFORE the trace)
+    const reg = ss(p, 0.33, 0.42); // dock framing → journey framing (plate exited)
+    const w = interiorWindows(p);
+    const through = Math.max(...w);
+    const reform = ss(p, 0.92, 0.99);
+    const explode = ss(p, 0.76, 0.9) * (1 - reform);
 
-    const wantLabels = explode > 0.4;
+    const wantLabels = explode > 0.45;
     if (wantLabels !== labelsOn) setLabelsOn(wantLabels);
 
-    // interior bore-glow — ignites only for the on-axis dive so the chambers
-    // read as a lit passage instead of a black void, with a soft breath
-    if (boreLight.current) {
-      const breathe = 1 + Math.sin(state.clock.elapsedTime * 2.1) * 0.12;
-      boreLight.current.intensity = through * 0.3 * breathe;
-    }
-    // the ring's HDR bloom (mipmapBlur) floods the whole frame with a pale wash
-    // once the camera is inside it — dim it to a line for the interior pass
-    if (ringMat.current) ringMat.current.emissiveIntensity = lerp(1.6, 0.18, through);
-
     if (g) {
-      g.position.x = lerp(-0.71, 0, reg);
-      g.position.y = Math.sin(state.clock.elapsedTime * 0.4) * 0.03 * (1 - dock) * (1 - onSide);
-      g.scale.setScalar(lerp(0.77, 1, reg));
-      g.rotation.y = (1 - dock) * 0.5 + state.clock.elapsedTime * 0.05 * (1 - dock);
-      g.rotation.x = (onSide - reform * onSide) * (Math.PI / 2);
+      // dock registration: the SVG plate draws the assembly at ~0.78 scale,
+      // centred 60px left of the sheet centre and higher than world origin —
+      // computed from the camera projection, then tuned against ink overlays
+      g.position.x = lerp(-0.4, 0, reg);
+      g.position.y = lerp(0.56, 0, reg) + Math.sin(state.clock.elapsedTime * 0.4) * 0.025 * (1 - dock);
+      g.scale.setScalar(lerp(0.781, 1, reg));
+      g.rotation.y = (1 - dock) * 0.35 + state.clock.elapsedTime * 0.04 * (1 - dock);
     }
 
-    // hold solid chrome until the camera is committed to the inlet.
-    // NOTE (review-confirmed): materials stay statically `transparent` — toggling
-    // .transparent at runtime without needsUpdate bakes a stale OPAQUE program
-    // (three r169 ignores the flag after first compile). And per-material
-    // envMapIntensity is IGNORED under scene.environment — the operative env
-    // control during the dive is scene.environmentIntensity in JourneyLights.
-    const fade = ss(p, 0.55, 0.63) * (1 - ss(p, 0.88, 0.98));
-    if (housingMat.current) {
-      const m = housingMat.current;
-      m.opacity = lerp(1, 0.06, fade);
-      m.depthWrite = m.opacity > 0.5;
-      m.clearcoat = lerp(STEEL.clearcoat, 0, fade);
-      m.metalness = lerp(1, 0.15, fade);
-    }
-    if (glassMat.current) {
-      const gm = glassMat.current;
-      gm.opacity = lerp(0.9, 0.04, fade);
-      gm.depthWrite = gm.opacity > 0.5;
-      // transmission ignores opacity — with the camera INSIDE the sleeve during
-      // the dive, the transmission pass resamples the bright scene into a milky
-      // wash no matter how low opacity goes. The camera is inside the sleeve
-      // anyway, so simply hide it for the interior pass.
-      gm.visible = through < 0.5;
-    }
-    kitMats.current.forEach((m) => {
-      m.opacity = lerp(1, 0.05, fade);
-      m.depthWrite = m.opacity > 0.5;
-    });
-
-    // the caps ghost ONLY through the dive window — the camera flies toward the
-    // base cap, which otherwise dead-ends the bore as an opaque env-lit disc.
-    // through→0 by the pull-back, so the explode beat gets solid flying caps.
-    [topCapMat.current, botCapMat.current].forEach((m) => {
-      if (m) {
-        m.opacity = lerp(1, 0.05, through);
-        m.depthWrite = m.opacity > 0.5;
+    // per-vessel: sump ghosts in its window; cartridge fades in (and stays
+    // visible through the service explode); flow guides live only in-window
+    for (let i = 0; i < 3; i++) {
+      const sm = sumpMats.current[i];
+      if (sm) {
+        sm.opacity = lerp(1, 0.12, w[i]);
+        sm.depthWrite = sm.opacity > 0.5;
       }
-    });
-
-    // fly-through: stages go translucent and darken — with the env + studio
-    // lights killed globally (JourneyLights), they read as dark passing chambers
-    stageMatRefs.current.forEach((m, i) => {
-      if (m) {
-        m.opacity = lerp(1, 0.3, through);
-        m.depthWrite = m.opacity > 0.5;
-        m.color.copy(STAGE_COLORS[i]).multiplyScalar(1 - through * 0.7);
+      const dm = domeMats.current[i];
+      if (dm) {
+        dm.opacity = lerp(1, 0.12, w[i]);
+        dm.depthWrite = dm.opacity > 0.5;
       }
-    });
+      // cap in-window cartridge opacity below 1 so the emissive core reads
+      // through the media wall (full opacity only for the service explode)
+      const cm = cartMats.current[i];
+      if (cm) cm.opacity = Math.max(w[i] * 0.85, explode);
+      const km = coreMats.current[i];
+      if (km) km.opacity = w[i] * 0.85;
+      const fg = flowGroups.current[i];
+      if (fg) fg.visible = w[i] > 0.05;
+      // interior action particles (radial capture motion, per the reference doc)
+      // — the whole group is visibility-gated so 0-opacity spheres don't draw
+      actionMats[i].forEach((m) => (m.opacity = w[i]));
+      const ag = actionGroups.current[i];
+      if (ag) ag.visible = w[i] > 0.02;
+      if (w[i] > 0.02) {
+        const tt = state.clock.elapsedTime;
+        actionSpecs[i].forEach((s, k) => {
+          const mesh = actionRefs.current[i][k];
+          if (!mesh) return;
+          const t01 = (tt * s.speed + s.phase) % 1;
+          const eased = 1 - (1 - t01) * (1 - t01); // decelerates INTO the media wall
+          const r = lerp(0.6, 0.415, eased);
+          mesh.position.set(Math.sin(s.angle) * r, s.y - t01 * 0.1, Math.cos(s.angle) * r);
+          const sc = i === 2 ? s.size * (1 - eased * 0.85) : s.size; // V3: flecks dissolve
+          mesh.scale.setScalar(Math.max(sc, 1e-4));
+        });
+      }
+      const rm = ringMats.current[i];
+      if (rm) rm.emissiveIntensity = lerp(1.1, 0.15, through);
+      // service explode: heads lift off, cartridges rise out of the sumps
+      const hg = headGroups.current[i];
+      if (hg) hg.position.y = explode * 1.15;
+      const cg = cartGroups.current[i];
+      if (cg) cg.position.y = explode * (0.95 + i * 0.12);
+    }
 
-    // split the stack apart along the column axis; caps travel FURTHER than the
-    // outermost stages (±1.6 + 2·1.2 spread) so the stack never interpenetrates
-    stageRefs.current.forEach((sg, i) => {
-      if (sg) sg.position.y = STAGES[i].y + (i - 2) * explode * 1.2;
-    });
-    if (topCap.current) topCap.current.position.y = 2.52 + explode * 2.4;
-    if (botCap.current) botCap.current.position.y = -2.05 - explode * 2.9;
+    // KDF redox sparks — brief electron-transfer flashes on the granule bed
+    // (only animated while V2's window is open; the group is hidden otherwise)
+    if (w[1] > 0.02) {
+      const tt = state.clock.elapsedTime;
+      sparkSpecs.forEach((s, k) => {
+        const m = sparkRefs.current[k];
+        if (!m) return;
+        const pulse = Math.max(0, Math.sin(tt * s.freq + s.phase));
+        m.scale.setScalar(0.01 + Math.pow(pulse, 8) * 0.055);
+      });
+    }
+
+    // interior glow tracks the active vessel (soft, breathing), and its colour
+    // tells the water's story: murky at V1, coppery-neutral at V2, clean at V3
+    if (boreLight.current) {
+      const sum = w[0] + w[1] + w[2];
+      const x = sum > 0.001 ? (w[0] * VESSELS[0].x + w[1] * VESSELS[1].x + w[2] * VESSELS[2].x) / sum : 0;
+      boreLight.current.position.x = x;
+      const breathe = 1 + Math.sin(state.clock.elapsedTime * 2.1) * 0.12;
+      boreLight.current.intensity = through * 0.5 * breathe;
+      if (through > 0.02)
+        boreLight.current.color.set(w[0] >= w[1] && w[0] >= w[2] ? "#e3c39a" : w[1] >= w[2] ? "#cfeef8" : "#bfe9ff");
+    }
   });
 
   return (
-    <group ref={group}>
-      {/* interior bore-glow (fly-through only — intensity driven in useFrame) */}
+    <group ref={assy}>
+      {/* interior glow (window-driven; slides to the active vessel) */}
       {!hidden("borelight") && (
-        <pointLight ref={boreLight} position={[0, 0.2, 0]} color="#29c2ee" intensity={0} distance={2.2} decay={2} />
+        // cool white-cyan, not saturated cyan — saturated cyan × copper = green
+        <pointLight ref={boreLight} position={[0, -0.3, 0.5]} color="#cfeef8" intensity={0} distance={3.2} decay={2} />
       )}
 
-      {/* housing shell */}
-      <mesh geometry={housingGeo} visible={!hidden("housing")}>
-        <meshPhysicalMaterial
-          ref={housingMat}
-          {...STEEL}
-          roughnessMap={roughMap ?? undefined}
-          bumpMap={bumpMap ?? undefined}
-          bumpScale={0.012}
-          transparent
-          opacity={1}
-        />
-      </mesh>
-
-      {/* glass sleeve (revealed as the shell ghosts) */}
-      <mesh>
-        <cylinderGeometry args={[0.82, 0.82, 3.6, 64, 1, true]} />
-        <meshPhysicalMaterial ref={glassMat} color="#dff3fb" metalness={0} roughness={0.04} transmission={1} thickness={0.5} ior={1.45} transparent opacity={0.9} side={THREE.DoubleSide} />
-      </mesh>
-
-      {KIT_BODY && !hidden("kit") && (
+      {/* ── mounting bracket + series pipework (mains → V1 → V2 → V3 → house) ── */}
+      {!hidden("kit") && (
         <>
-          {/* ── body-mounted kit (fades with the shell) ── */}
-          {/* level-gauge sight window: dark inset + glowing cyan gauge bar */}
-          <group rotation={[0, 0.12, 0]}>
-            <mesh rotation={[0, -0.26, 0]}>
-              <cylinderGeometry args={[0.925, 0.925, 1.9, 24, 1, true, -0.26, 0.52]} />
-              <meshStandardMaterial ref={kitMat} color="#10161c" metalness={0.6} roughness={0.55} side={THREE.DoubleSide} transparent />
-            </mesh>
-            <mesh position={[0, -0.1, 0.94]}>
-              <boxGeometry args={[0.05, 1.55, 0.02]} />
-              <meshStandardMaterial ref={kitMat} color="#29c2ee" emissive="#29c2ee" emissiveIntensity={0.75} toneMapped={false} transparent />
-            </mesh>
-            {[-0.6, -0.2, 0.2, 0.6].map((y) => (
-              <mesh key={y} position={[0.09, y, 0.935]}>
-                <boxGeometry args={[0.07, 0.012, 0.015]} />
-                <meshStandardMaterial ref={kitMat} color="#9fb4c2" metalness={0.4} roughness={0.5} transparent />
-              </mesh>
-            ))}
-          </group>
-
-          {/* sanitary clamp band + bolts at the waist */}
-          <mesh position={[0, 0.02, 0]}>
-            <cylinderGeometry args={[0.945, 0.945, 0.13, 96]} />
-            <meshPhysicalMaterial ref={kitMat} {...CAPS} transparent />
+          <mesh position={[0, 1.02, -0.6]}>
+            <boxGeometry args={[5.4, 0.26, 0.1]} />
+            <meshStandardMaterial {...MACHINED} />
           </mesh>
-          {[0.9, 3.0, 5.1].map((a) => (
-            <mesh key={a} position={[Math.sin(a) * 0.96, 0.02, Math.cos(a) * 0.96]} rotation={[0, a, Math.PI / 2]}>
-              <cylinderGeometry args={[0.035, 0.035, 0.16, 12]} />
-              <meshStandardMaterial ref={kitMat} {...MACHINED} transparent />
+          {[-2.94, -0.95, 0.95, 2.94].map((x, i) => (
+            <mesh key={x} position={[x, 1.0, 0]} rotation={[0, 0, Math.PI / 2]}>
+              <cylinderGeometry args={[0.11, 0.11, i === 0 || i === 3 ? 0.6 : 0.44, 20]} />
+              <meshPhysicalMaterial {...CAPS} />
             </mesh>
           ))}
-
-          {/* bypass valve assembly (one side — deliberate asymmetry) */}
-          <group position={[0.92, 1.66, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <mesh>
-              <cylinderGeometry args={[0.1, 0.1, 0.55, 24]} />
-              <meshPhysicalMaterial ref={kitMat} {...CAPS} transparent />
+          {/* mains-in / house-out elbows */}
+          {[-3.22, 3.22].map((x) => (
+            <mesh key={x} position={[x, 0.9, 0]}>
+              <sphereGeometry args={[0.14, 18, 14]} />
+              <meshStandardMaterial {...MACHINED} />
             </mesh>
-            <mesh position={[0, -0.34, 0]}>
-              <sphereGeometry args={[0.15, 24, 18]} />
-              <meshStandardMaterial ref={kitMat} {...MACHINED} transparent />
-            </mesh>
-            <mesh position={[0, -0.34, 0.16]} rotation={[0.35, 0, 0]}>
-              <boxGeometry args={[0.055, 0.055, 0.3]} />
-              <meshStandardMaterial ref={kitMat} color="#29c2ee" metalness={0.3} roughness={0.4} transparent />
-            </mesh>
-          </group>
-
-          {/* serial etch plate (back-left clock) */}
-          <mesh position={[Math.sin(2.5) * 0.905, 0.95, Math.cos(2.5) * 0.905]} rotation={[0, 2.5, 0]}>
-            <boxGeometry args={[0.42, 0.26, 0.015]} />
-            <meshStandardMaterial ref={kitMat} color="#8a949c" metalness={0.8} roughness={0.45} transparent />
-          </mesh>
+          ))}
         </>
       )}
 
-      {/* ── media stages ── */}
-      {!hidden("stages") &&
-      STAGES.map((s, i) => (
-        <group
-          key={s.y}
-          ref={(el) => {
-            stageRefs.current[i] = el;
-          }}
-          position={[0, s.y, 0]}
-        >
-          <mesh>
-            <cylinderGeometry args={[0.7, 0.7, 0.74, 64]} />
-            <meshStandardMaterial
+      {VESSELS.map((v, i) => (
+        <group key={v.n} position={[v.x, 0, 0]}>
+          {/* head / cap (lifts on the service explode) */}
+          {!hidden("caps") && (
+            <group
               ref={(el) => {
-                stageMatRefs.current[i] = el;
+                headGroups.current[i] = el;
               }}
-              color={s.color}
-              metalness={i === 2 || i === 4 ? 0.35 : 0.1}
-              roughness={0.62}
-              emissive={i === 4 ? "#0c4a61" : "#000000"}
-              emissiveIntensity={i === 4 ? 0.25 : 0}
-              transparent
-            />
-          </mesh>
-          <Html position={[0, 0, -1.05]} center zIndexRange={[12, 0]} className="stage-label-wrap">
-            <div className={`stage-label ${labelsOn ? "on" : ""}`.trim()}>
-              <span className="sl-n">{s.n}</span>
-              <span className="sl-t">{s.title}</span>
-              <span className="sl-s">{s.sub}</span>
-            </div>
-          </Html>
-        </group>
-      ))}
-
-      {/* ── base assembly (explodes with the bottom cap) ── */}
-      <group ref={botCap} position={[0, -2.05, 0]}>
-        <mesh>
-          <cylinderGeometry args={[0.99, 0.99, 0.3, 96]} />
-          <meshPhysicalMaterial ref={botCapMat} {...CAPS} transparent /></mesh>
-        {KIT_CAPS && (
-          <>
-            <mesh position={[0, -0.18, 0]}>
-              <cylinderGeometry args={[1.04, 1.06, 0.07, 96]} />
-              <meshStandardMaterial {...MACHINED} />
-            </mesh>
-            {[0.5, 2.6, 4.7].map((a) => (
-              <mesh key={a} position={[Math.sin(a) * 0.72, -0.27, Math.cos(a) * 0.72]}>
-                <cylinderGeometry args={[0.09, 0.11, 0.1, 16]} />
+            >
+              <mesh position={[0, 1.0, 0]}>
+                <cylinderGeometry args={[0.74, 0.74, 0.52, 48]} />
+                <meshPhysicalMaterial {...CAPS} />
+              </mesh>
+              {/* pressure-release button */}
+              <mesh position={[0, 1.32, 0]}>
+                <cylinderGeometry args={[0.09, 0.09, 0.14, 16]} />
                 <meshStandardMaterial {...MACHINED} />
               </mesh>
-            ))}
-            <group position={[0.98, 0.02, 0.3]} rotation={[0, 0.3, Math.PI / 2]}>
-              <mesh>
-                <cylinderGeometry args={[0.06, 0.06, 0.3, 16]} />
+              {/* head collar detail */}
+              <mesh position={[0, 0.78, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                <torusGeometry args={[0.68, 0.028, 10, 48]} />
                 <meshStandardMaterial {...MACHINED} />
-              </mesh>
-              <mesh position={[0, -0.18, 0]} rotation={[0, 0, 0.9]}>
-                <boxGeometry args={[0.04, 0.22, 0.05]} />
-                <meshStandardMaterial color="#9aa6af" metalness={0.8} roughness={0.35} />
               </mesh>
             </group>
-          </>
-        )}
-      </group>
+          )}
 
-      {/* ── crown assembly (explodes with the top cap) ── */}
-      <group ref={topCap} position={[0, 2.52, 0]}>
-        <mesh>
-          <cylinderGeometry args={[0.36, 0.36, 0.42, 64]} />
-          <meshPhysicalMaterial ref={topCapMat} {...CAPS} transparent />
-        </mesh>
-        {KIT_CAPS && (
-          <>
-            <mesh position={[0, -0.16, 0]}>
-              <cylinderGeometry args={[0.46, 0.5, 0.15, 64]} />
-              <meshStandardMaterial {...MACHINED} />
-            </mesh>
-            {[0.09, -0.05].map((y) => (
-              <mesh key={y} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
-                <torusGeometry args={[0.365, 0.016, 8, 64]} />
-                <meshStandardMaterial {...MACHINED} />
+          {/* sump (ghosts during this vessel's window) */}
+          {!hidden("housing") && (
+            <>
+              <mesh position={[0, -0.4, 0]}>
+                <cylinderGeometry args={[0.62, 0.62, 2.3, 48]} />
+                <meshPhysicalMaterial
+                  ref={(el) => {
+                    sumpMats.current[i] = el;
+                  }}
+                  {...STEEL}
+                  roughnessMap={roughMap ?? undefined}
+                  bumpMap={bumpMap ?? undefined}
+                  bumpScale={0.012}
+                  transparent
+                  opacity={1}
+                />
               </mesh>
-            ))}
-            <mesh position={[0, 0.32, 0]}>
-              <cylinderGeometry args={[0.15, 0.15, 0.26, 32]} />
-              <meshPhysicalMaterial {...CAPS} />
-            </mesh>
-            {[0.26, 0.32, 0.38].map((y) => (
-              <mesh key={y} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
-                <torusGeometry args={[0.155, 0.008, 6, 32]} />
-                <meshStandardMaterial {...MACHINED} />
+              {/* shallow domed base (flattened to match the GA's rounded foot) */}
+              <mesh position={[0, -1.55, 0]} scale={[1, 0.32, 1]}>
+                <sphereGeometry args={[0.62, 40, 18, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2]} />
+                <meshPhysicalMaterial
+                  ref={(el) => {
+                    domeMats.current[i] = el;
+                  }}
+                  {...CAPS}
+                  transparent
+                />
               </mesh>
-            ))}
-            <mesh position={[0.24, 0.14, 0]} rotation={[0, 0, Math.PI / 2]}>
-              <cylinderGeometry args={[0.045, 0.045, 0.14, 12]} />
-              <meshStandardMaterial {...MACHINED} />
-            </mesh>
-          </>
-        )}
-      </group>
+            </>
+          )}
 
-      {/* cyan diffusion ring — SEATED into the lower flange band (an engineered
-          inset, not a floating hoop), and the ONLY thing that blooms */}
-      <mesh position={[0, -1.6, 0]} rotation={[Math.PI / 2, 0, 0]} visible={!hidden("ring")}>
-        <torusGeometry args={[0.99, 0.018, 14, 96]} />
-        <meshStandardMaterial ref={ringMat} color="#29c2ee" emissive="#29c2ee" emissiveIntensity={1.6} toneMapped={false} />
-      </mesh>
+          {/* cartridge (revealed in-window; rises out on the explode).
+              depthWrite OFF + core renderOrder (review-confirmed): otherwise the
+              cartridge depth-occludes the core and "up the core" never renders. */}
+          {!hidden("stages") && (
+            <group
+              ref={(el) => {
+                cartGroups.current[i] = el;
+              }}
+            >
+              <mesh position={[0, -0.42, 0]}>
+                <cylinderGeometry args={[0.4, 0.4, 2.05, 40]} />
+                <meshStandardMaterial
+                  ref={(el) => {
+                    cartMats.current[i] = el;
+                  }}
+                  color={i === 1 && granuleMap ? "#ffffff" : v.cart}
+                  map={i === 1 ? granuleMap ?? undefined : undefined}
+                  metalness={v.cartMetal}
+                  roughness={v.cartRough}
+                  bumpMap={i === 0 ? bumpMap ?? undefined : undefined}
+                  bumpScale={i === 0 ? 0.02 : 0}
+                  transparent
+                  depthWrite={false}
+                  opacity={0}
+                />
+              </mesh>
+              {/* hollow core the filtered water rises through (draws after the
+                  cartridge so its glow reads through the ghosted media wall) */}
+              <mesh position={[0, -0.42, 0]} renderOrder={2}>
+                <cylinderGeometry args={[0.085, 0.085, 2.08, 20]} />
+                <meshStandardMaterial
+                  ref={(el) => {
+                    coreMats.current[i] = el;
+                  }}
+                  color="#0f6f8e"
+                  emissive="#29c2ee"
+                  emissiveIntensity={0.9}
+                  transparent
+                  depthWrite={false}
+                  opacity={0}
+                />
+              </mesh>
+              <Html position={[0, -2.15, 0]} center zIndexRange={[12, 0]} className="stage-label-wrap">
+                <div className={`stage-label ${labelsOn ? "on" : ""}`.trim()}>
+                  <span className="sl-n">{v.n}</span>
+                  <span className="sl-t">{v.title}</span>
+                  <span className="sl-s">{v.sub}</span>
+                </div>
+              </Html>
+            </group>
+          )}
+
+          {/* radial-flow guides: DOWN the annulus, IN through the wall, UP the core */}
+          {!hidden("flow") && (
+            <group
+              ref={(el) => {
+                flowGroups.current[i] = el;
+              }}
+              visible={false}
+            >
+              {/* annulus down-arrows (staggered around the front half) */}
+              {[
+                [0.52, 0.42, 0.12],
+                [-0.44, -0.02, 0.3],
+                [0.28, -0.5, 0.45],
+              ].map((pos, k) => (
+                <mesh key={k} position={pos as [number, number, number]} rotation={[Math.PI, 0, 0]}>
+                  <coneGeometry args={[0.06, 0.17, 12]} />
+                  <meshStandardMaterial color="#29c2ee" emissive="#29c2ee" emissiveIntensity={0.55} />
+                </mesh>
+              ))}
+              {/* inward arrows punching through the media wall */}
+              {[
+                [0.5, -0.85, 0.0],
+                [-0.5, -0.85, 0.0],
+              ].map((pos, k) => (
+                <mesh key={k} position={pos as [number, number, number]} rotation={[0, 0, pos[0] > 0 ? Math.PI / 2 : -Math.PI / 2]}>
+                  <coneGeometry args={[0.05, 0.14, 12]} />
+                  <meshStandardMaterial color="#7fd8f5" emissive="#7fd8f5" emissiveIntensity={0.45} />
+                </mesh>
+              ))}
+              {/* core up-arrow */}
+              <mesh position={[0, 0.62, 0]}>
+                <coneGeometry args={[0.07, 0.2, 12]} />
+                <meshStandardMaterial color="#29c2ee" emissive="#29c2ee" emissiveIntensity={0.7} />
+              </mesh>
+            </group>
+          )}
+
+          {/* interior actions — the "what working looks like" micro-events
+              (visibility-gated per window in useFrame) */}
+          {!hidden("actions") && (
+            <group
+              ref={(el) => {
+                actionGroups.current[i] = el;
+              }}
+              visible={false}
+            >
+              {actionSpecs[i].map((s, k) => (
+                <mesh
+                  key={`a${k}`}
+                  ref={(el) => {
+                    actionRefs.current[i][k] = el;
+                  }}
+                  geometry={sphereGeo}
+                  material={actionMats[i][s.mi]}
+                  scale={s.size}
+                />
+              ))}
+              {i === 1 &&
+                sparkSpecs.map((s, k) => (
+                  <mesh
+                    key={`sp${k}`}
+                    ref={(el) => {
+                      sparkRefs.current[k] = el;
+                    }}
+                    geometry={sphereGeo}
+                    material={actionMats[1][1]}
+                    position={[Math.sin(s.angle) * 0.415, s.y, Math.cos(s.angle) * 0.415]}
+                    scale={0.01}
+                  />
+                ))}
+            </group>
+          )}
+
+          {/* cyan brand ring seated at the sump base */}
+          <mesh position={[0, -1.5, 0]} rotation={[Math.PI / 2, 0, 0]} visible={!hidden("ring")}>
+            <torusGeometry args={[0.655, 0.015, 12, 64]} />
+            <meshStandardMaterial
+              ref={(el) => {
+                ringMats.current[i] = el;
+              }}
+              color="#29c2ee"
+              emissive="#29c2ee"
+              emissiveIntensity={1.1}
+              toneMapped={false}
+            />
+          </mesh>
+        </group>
+      ))}
     </group>
   );
 }
@@ -573,11 +668,10 @@ export default function ChromeStage({ progress, active }: Props) {
     <Canvas
       frameloop={active ? "always" : "never"}
       dpr={[1, 2]}
-      camera={{ position: [0, 0, 8.8], fov: 38 }}
-      // OPAQUE canvas: blending transparent chrome/stage layers against an
-      // alpha framebuffer and letting the BROWSER composite produces the classic
-      // milky wash (alpha mismatch, worst during the ghosted fly-through). The
-      // canvas sits UNDER the SVG plate, so it can own its dark studio backdrop.
+      camera={{ position: [0, 0.12, 8.8], fov: 38 }}
+      // OPAQUE canvas: blending ghosted layers against an alpha framebuffer and
+      // letting the BROWSER composite produces a milky wash. The canvas sits
+      // UNDER the SVG plate, so it can own its dark studio backdrop.
       gl={{ alpha: false, antialias: true, powerPreference: "high-performance" }}
       onCreated={({ gl, scene }) => {
         gl.toneMapping = THREE.ACESFilmicToneMapping;
@@ -587,21 +681,19 @@ export default function ChromeStage({ progress, active }: Props) {
       }}
       style={{ position: "absolute", inset: 0 }}
     >
-      {/* Studio HDRI softbox reflections — clean, product-photography chrome, and
-          (unlike an in-scene Lightformer bake) it renders reliably on real GPUs.
-          SELF-HOSTED (public/hdri) so the 3D never depends on a third-party CDN.
-          ACES tone-mapping + refined metal + directional cyan brand rims do the
-          rest. The SVG plate is the no-WebGL / reduced-motion fallback. */}
+      {/* Studio HDRI softbox reflections — SELF-HOSTED (public/hdri) so the 3D
+          never depends on a third-party CDN. The SVG plate is the no-WebGL /
+          reduced-motion fallback. */}
       <Environment files={asset("/hdri/studio_small_03_1k.hdr")} environmentIntensity={0.82} />
 
       <JourneyLights progress={progress} />
 
-      <ChromeColumn progress={progress} />
+      <VesselAssembly progress={progress} />
       <Rig progress={progress} />
       {typeof window !== "undefined" && new URLSearchParams(window.location.search).has("ngdbgray") && <DebugRay />}
 
       {!hidden("shadows") && (
-        <ContactShadows position={[0, -2.38, 0]} opacity={0.55} scale={13} blur={3} far={5} color="#000000" />
+        <ContactShadows position={[0, -1.72, 0]} opacity={0.55} scale={14} blur={3} far={5} color="#000000" />
       )}
 
       {!hidden("post") && (

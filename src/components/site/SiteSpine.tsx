@@ -5,7 +5,16 @@ import { Plate, Callout } from "./Plate";
 import { Button } from "@/components/ui/Button";
 import { CONTACT, SITE_REVISIONS } from "@/content/plates";
 import C4FooterCredit from "@/components/c4-footer-credit/C4FooterCredit";
-import { SILHOUETTE_D, BEDS } from "@/components/blueprint/columnPaths";
+/* Section A–A geometry (Plate 04): one vessel cut through its axis —
+   sump wall, annular gap, media wall, hollow core. Radial outside-in flow. */
+const SEC = {
+  headL: 340, headR: 690, headT: 130, headB: 205, // head block
+  wallOL: 355, wallIL: 370, wallIR: 660, wallOR: 675, // sump wall (outer/inner)
+  mediaL0: 400, mediaL1: 465, mediaR0: 565, mediaR1: 630, // media wall bands
+  coreL: 500, coreR: 530, // hollow core channel
+  top: 240, bot: 710, // media extent
+  sumpBot: 750,
+};
 import { createCleanseStrip } from "@/components/fluid/cleanseStrip";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 
@@ -21,10 +30,10 @@ function TrustPlate() {
             NOT TO A PRICE.
           </h2>
           <p className="sheet-p">
-            Most home filters are bought in, badged and boxed. The NGW-01 is one sealed column — drawn, toleranced and
-            signed off before a single unit is built, the way you engineer a machine, not assemble a kit. Read the figures
-            on these sheets like a spec sheet, because that is what they are. Every one is a placeholder pending
-            substantiation; drawings carry tolerances, and so do our claims.
+            Most home filters are bought in, badged and boxed. The NGW-01 is a sealed three-vessel assembly — drawn,
+            toleranced and signed off before a single unit is built, the way you engineer a machine, not assemble a kit.
+            Read the figures on these sheets like a spec sheet, because that is what they are. Every one is a placeholder
+            pending substantiation; drawings carry tolerances, and so do our claims.
           </p>
         </div>
         <div className="notes-col" aria-label="General notes">
@@ -44,8 +53,8 @@ function ProblemPlate() {
   const items = [
     { n: "01", a: 328, label: "CHLORINE", note: "taste, odour, by-products" },
     { n: "02", a: 26, label: "LEAD (Pb)", note: "from older fittings*" },
-    { n: "03", a: 112, label: "PFAS", note: "‘forever chemicals’*" },
-    { n: "04", a: 205, label: "SEDIMENT", note: "grit · rust · scale" },
+    { n: "03", a: 112, label: "IRON & H₂S", note: "staining · ‘rotten-egg’*" },
+    { n: "04", a: 205, label: "SEDIMENT & SCALE", note: "grit · rust · hardness" },
   ];
   return (
     <Plate id="plate-problem" sheet="03" rev="E" name="DETAIL A — CONTAMINANTS" plateNo="PLATE 03" kicker="REV E · DETAIL A — SCALE 4:1 · UNFILTERED SUPPLY">
@@ -58,8 +67,8 @@ function ProblemPlate() {
           </h2>
           <p className="sheet-p">
             Town water is treated to be safe to supply — not to be the best water your family could drink. On the way to
-            your tap it can pick up chlorine, dissolved lead, PFAS that treatment was never built to remove, and fine
-            sediment you only notice once it’s in the glass. None of it changes how the water looks.{" "}
+            your tap it can pick up chlorine, dissolved lead from older fittings, iron that stains and sulphur you can
+            smell, and fine sediment you only notice once it’s in the glass. None of it changes how the water looks.{" "}
             <span className="ink-underline">Clear isn’t the same as clean.</span>
           </p>
           <p className="sheet-fig">DETAIL A · NOT TO SCALE · presence and levels confirmed by your free in-home test*</p>
@@ -88,12 +97,11 @@ function ProblemPlate() {
 }
 
 /* ─────────────────────── PLATE 04 — FLOW TEST ─────────────────────── */
+// the real Clear2O FHWR-3SI-20 stages, in sheet order
 const STAGES = [
-  { n: "1", title: "SEDIMENT", job: "20µm pre-filter · grit, rust, scale*" },
-  { n: "2", title: "CARBON BLOCK", job: "chlorine, taste & odour*" },
-  { n: "3", title: "RO MEMBRANE", job: "dissolved solids, lead, PFAS*" },
-  { n: "4", title: "POST-CARBON", job: "final polish*" },
-  { n: "5", title: "RE-MINERALISE", job: "balanced pH & minerals*" },
+  { n: "1", title: "SEDIMENT 3-LAYER", job: "10/5/1µm graded · grit, rust, silt*" },
+  { n: "2", title: "KDF 55/85 + CARBON", job: "heavy metals, chlorine, bacteria control*" },
+  { n: "3", title: "LIMESCALE CARBON", job: "scale reduction · taste · 1µm polish*" },
 ];
 function FlowTestPlate() {
   const reduced = useReducedMotion();
@@ -121,55 +129,123 @@ function FlowTestPlate() {
     <Plate id="plate-flowtest" sheet="04" rev="F" name="SECTION A–A · FLOW TEST" plateNo="PLATE 04" kicker="REV F · SECTION A–A · FLOW TEST" className="sheet--center">
       <div className="flow-head">
         <h2 className="sheet-h">
-          FIVE STAGES.
+          THREE STAGES.
           <br />
-          ONE QUIET COLUMN.
+          ONE QUIET SYSTEM.
         </h2>
         <p className="sheet-p">
-          The whole idea, drawn as a test rig. Water enters at the top carrying everything from the previous sheet and
-          leaves the base clear — five media beds, each doing one job, in order.
+          Section A–A through one vessel — the way a cartridge filter actually works. Water enters the head, sheets{" "}
+          <em>down</em> the annular gap, is forced <em>inward</em> through the media wall, and rises clean{" "}
+          <em>up</em> the hollow core. Radial, outside-in: the whole machine in one cut.
         </p>
       </div>
       <div className="flow-stage">
         <svg viewBox="280 90 470 730" className="flow-svg" aria-hidden="true">
           <defs>
-            <linearGradient id="flowGrad" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id="flowGrad" x1="0" y1="0" x2="1" y2="0">
               <stop offset="0%" stopColor="#5c5638" />
-              <stop offset="34%" stopColor="#6f7a52" />
-              <stop offset="62%" stopColor="#4f93b8" />
-              <stop offset="100%" stopColor="#bfeefb" />
+              <stop offset="30%" stopColor="#6f7a52" />
+              <stop offset="50%" stopColor="#bfeefb" />
+              <stop offset="70%" stopColor="#6f7a52" />
+              <stop offset="100%" stopColor="#5c5638" />
             </linearGradient>
             <clipPath id="flowClip">
-              <path d={SILHOUETTE_D} />
+              <rect x={SEC.wallIL} y={SEC.headB} width={SEC.wallIR - SEC.wallIL} height={735 - SEC.headB} rx="18" />
             </clipPath>
+            <pattern id="sec-dots" width="10" height="10" patternUnits="userSpaceOnUse">
+              <circle cx="3" cy="3" r="1" fill="#28506f" opacity="0.5" />
+            </pattern>
           </defs>
-          {/* static turbid→clear fallback (shows if WebGL is unavailable) */}
+          {/* static radial turbid→clear fallback (shows if WebGL is unavailable) */}
           <g clipPath="url(#flowClip)">
-            <rect x="324" y="120" width="312" height="640" fill="url(#flowGrad)" />
+            <rect x={SEC.wallIL} y={SEC.headB} width={SEC.wallIR - SEC.wallIL} height={735 - SEC.headB} fill="url(#flowGrad)" />
           </g>
-          {/* live WebGL flow test, masked to the column */}
-          <foreignObject x="324" y="120" width="312" height="640" clipPath="url(#flowClip)">
+          {/* live WebGL flow test, masked to the vessel interior */}
+          <foreignObject x={SEC.wallIL} y={SEC.headB} width={SEC.wallIR - SEC.wallIL} height={735 - SEC.headB} clipPath="url(#flowClip)">
             <canvas ref={canvasRef} className="flow-canvas" />
           </foreignObject>
-          {/* the drawn section, on top */}
-          <path className="lw-draw lw-heavy2" d={SILHOUETTE_D} pathLength={1} fill="none" />
-          {BEDS.map((b) => (
-            <line key={b.id} className="lw-draw lw-hair2" x1="340" y1={b.y0} x2="620" y2={b.y0} pathLength={1} />
-          ))}
-          {/* IN / OUT */}
-          <text x="480" y="108" className="flow-io" textAnchor="middle">
-            IN ▾
+
+          {/* ── the drawn section, on top ── */}
+          {/* head block with IN / OUT ports */}
+          <path
+            className="lw-draw lw-heavy2"
+            d={`M${SEC.headL} ${SEC.headB} L${SEC.headL} ${SEC.headT} L${SEC.headR} ${SEC.headT} L${SEC.headR} ${SEC.headB}`}
+            pathLength={1}
+            fill="none"
+          />
+          <path
+            className="lw-draw lw-heavy2"
+            d={`M280 155 L${SEC.headL} 155 M280 185 L${SEC.headL} 185 M${SEC.headR} 155 L750 155 M${SEC.headR} 185 L750 185`}
+            pathLength={1}
+            fill="none"
+          />
+          {/* sump wall in section (outer + inner faces, rounded bottom) */}
+          <path
+            className="lw-draw lw-heavy2"
+            d={
+              `M${SEC.wallOL} ${SEC.headB} L${SEC.wallOL} ${SEC.sumpBot - 24} Q${SEC.wallOL} ${SEC.sumpBot} ${SEC.wallOL + 24} ${SEC.sumpBot} ` +
+              `L${SEC.wallOR - 24} ${SEC.sumpBot} Q${SEC.wallOR} ${SEC.sumpBot} ${SEC.wallOR} ${SEC.sumpBot - 24} L${SEC.wallOR} ${SEC.headB}`
+            }
+            pathLength={1}
+            fill="none"
+          />
+          <path
+            className="lw-draw lw-hair2"
+            d={`M${SEC.wallIL} ${SEC.headB} L${SEC.wallIL} 723 Q${SEC.wallIL} 735 ${SEC.wallIL + 14} 735 L${SEC.wallIR - 14} 735 Q${SEC.wallIR} 735 ${SEC.wallIR} 723 L${SEC.wallIR} ${SEC.headB}`}
+            pathLength={1}
+            fill="none"
+          />
+          {/* media wall bands (the cartridge, cut) — hatched */}
+          <rect x={SEC.mediaL0} y={SEC.top} width={SEC.mediaL1 - SEC.mediaL0} height={SEC.bot - SEC.top} fill="url(#sec-dots)" opacity="0.85" />
+          <rect x={SEC.mediaR0} y={SEC.top} width={SEC.mediaR1 - SEC.mediaR0} height={SEC.bot - SEC.top} fill="url(#sec-dots)" opacity="0.85" />
+          <path
+            className="lw-draw lw-heavy2"
+            d={
+              `M${SEC.mediaL0} ${SEC.top} L${SEC.mediaL1} ${SEC.top} L${SEC.mediaL1} ${SEC.bot} L${SEC.mediaL0} ${SEC.bot} Z ` +
+              `M${SEC.mediaR0} ${SEC.top} L${SEC.mediaR1} ${SEC.top} L${SEC.mediaR1} ${SEC.bot} L${SEC.mediaR0} ${SEC.bot} Z`
+            }
+            pathLength={1}
+            fill="none"
+          />
+          {/* hollow core tube + rise channel into the head */}
+          <path
+            className="lw-draw lw-hair2"
+            d={`M${SEC.coreL} ${SEC.bot} L${SEC.coreL} ${SEC.headB} M${SEC.coreR} ${SEC.bot} L${SEC.coreR} ${SEC.headB} M${SEC.coreL} ${SEC.bot} L${SEC.coreR} ${SEC.bot}`}
+            pathLength={1}
+            fill="none"
+          />
+          {/* ── flow arrows: down the annulus → in through the media → up the core ── */}
+          <path
+            className="lw-draw lw-hair2 flow-arrows"
+            d={
+              // IN / OUT arrows in the ports
+              `M300 170 L326 170 M318 163 L326 170 L318 177 ` +
+              `M704 170 L730 170 M722 163 L730 170 L722 177 ` +
+              // down the left + right annulus
+              `M385 300 L385 340 M378 332 L385 340 L392 332 M385 470 L385 510 M378 502 L385 510 L392 502 ` +
+              `M645 300 L645 340 M638 332 L645 340 L652 332 M645 470 L645 510 M638 502 L645 510 L652 502 ` +
+              // inward through the media wall
+              `M405 600 L458 600 M450 593 L458 600 L450 607 ` +
+              `M625 600 L572 600 M580 593 L572 600 L580 607 ` +
+              // up the hollow core
+              `M515 640 L515 600 M508 608 L515 600 L522 608 M515 470 L515 430 M508 438 L515 430 L522 438 M515 300 L515 260 M508 268 L515 260 L522 268`
+            }
+            pathLength={1}
+            fill="none"
+          />
+          {/* section labels */}
+          <text x={SEC.wallOL - 12} y="460" className="flow-dim" textAnchor="middle" transform={`rotate(-90 ${SEC.wallOL - 12} 460)`}>
+            ANNULUS — RAW IN
           </text>
-          <text x="480" y="792" className="flow-io" textAnchor="middle">
-            ▾ OUT
+          <text x="515" y={SEC.top - 12} className="flow-dim" textAnchor="middle">
+            CORE — CLEAN OUT
           </text>
-          {/* overall height dimension */}
-          <line className="lw-hair2" x1="636" y1="130" x2="700" y2="130" />
-          <line className="lw-hair2" x1="636" y1="750" x2="700" y2="750" />
-          <line className="lw-hair2" x1="688" y1="130" x2="688" y2="750" />
-          {/* vertical dims read along the line (draughting convention) */}
-          <text x="700" y="440" className="flow-dim" textAnchor="middle" transform="rotate(-90 700 440)">
-            540 mm*
+          {/* height dimension */}
+          <line className="lw-hair2" x1={SEC.wallOR + 8} y1={SEC.headT} x2={SEC.wallOR + 42} y2={SEC.headT} />
+          <line className="lw-hair2" x1={SEC.wallOR + 8} y1={SEC.sumpBot} x2={SEC.wallOR + 42} y2={SEC.sumpBot} />
+          <line className="lw-hair2" x1={SEC.wallOR + 34} y1={SEC.headT} x2={SEC.wallOR + 34} y2={SEC.sumpBot} />
+          <text x={SEC.wallOR + 46} y="440" className="flow-dim" textAnchor="middle" transform={`rotate(-90 ${SEC.wallOR + 46} 440)`}>
+            508 mm*
           </text>
         </svg>
         <ol className="flow-list">
@@ -187,13 +263,19 @@ function FlowTestPlate() {
 }
 
 /* ─────────────────────── PLATE 05 — BENCHMARK ─────────────────────── */
+/* Claims scoped to what a KDF/carbon system can actually do (no RO → no
+   PFAS / fluoride / TDS rows — those are achievable only with reverse
+   osmosis and must not be claimed for this hardware). All figures remain
+   placeholder pending NATA-accredited certificates. */
 const SCHEDULE = [
-  { c: "LEAD", v: 98, m: "RO · NSF/ANSI-style*" },
-  { c: "CHLORINE", v: 97, m: "carbon block*" },
-  { c: "FLUORIDE", v: 90, m: "RO membrane*" },
-  { c: "PFAS", v: 95, m: "RO membrane*" },
-  { c: "HEAVY METALS", v: 96, m: "multi-stage*" },
-  { c: "SEDIMENT", v: 99, m: "20µm pre-filter*" },
+  { c: "CHLORINE", v: 99, m: "carbon + KDF redox*" },
+  { c: "LEAD", v: 98, m: "KDF 55 redox — soluble cations*" },
+  { c: "HEAVY METALS", v: 96, m: "KDF redox*" },
+  { c: "IRON & H₂S", v: 95, m: "KDF 85 redox*" },
+  // scale-FORMATION reduction (crystallisation inhibited) — NOT hardness/TDS
+  // removal, which KDF/carbon systems cannot claim (RO-only)
+  { c: "SCALE FORMATION", v: 90, m: "limescale-reduction media — formation, not hardness removal*" },
+  { c: "SEDIMENT", v: 99, m: "10/5/1µm 3-layer pre-filter*" },
 ];
 function BenchmarkPlate() {
   return (
@@ -407,7 +489,7 @@ function TitleBlockFooter() {
             <i>COMPANY</i>NEXT GEN WATER SYSTEMS
           </div>
           <div className="tbf-cell">
-            <i>DRAWING</i>NGW-01 WHOLE-HOME FILTRATION COLUMN
+            <i>DRAWING</i>NGW-01 WHOLE-HOME FILTRATION — 3-VESSEL ASSEMBLY
           </div>
           <div className="tbf-cell">
             <i>SHEET</i>09 OF 09
