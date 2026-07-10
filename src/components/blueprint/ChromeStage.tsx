@@ -3,9 +3,10 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Environment, ContactShadows, Html, Lightformer } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette, ChromaticAberration } from "@react-three/postprocessing";
-import { useMemo, useRef, useState, type MutableRefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import * as THREE from "three";
 import { asset } from "@/lib/asset";
+import { BACKDROP_STOPS, BACKDROP_CENTER, BACKDROP_RADII, BACKDROP_FOG } from "./backdrop";
 
 /**
  * THE REAL MACHINE — NGW-01 as it actually is: three 20″×4.5″ vessels on a
@@ -24,7 +25,16 @@ import { asset } from "@/lib/asset";
  * Stage order per the client's spec sheet: 1 graded sediment → 2 KDF 55/85 +
  * coconut carbon (the redox bed) → 3 limescale-reduction carbon.
  */
-type Props = { progress: MutableRefObject<number>; active: boolean };
+type Props = {
+  progress: MutableRefObject<number>;
+  active: boolean;
+  /** .plate-sheet height / viewport height — drives the dock registration
+   *  zoom now that the canvas is full-bleed (Phase 1). */
+  sheetRatio?: MutableRefObject<number>;
+  /** fires once the suspended scene (env HDR included) has actually mounted —
+   *  LivingDrawing holds the SVG still as a poster until then. */
+  onReady?: () => void;
+};
 
 // DEV forensic (?nghide=a,b,c): knock out scene elements to bisect a rogue
 // frame. Namespaced key so real-world query params can't collide; inert
@@ -63,6 +73,58 @@ const STEEL = { color: "#b1bcc6", metalness: 1, roughness: 0.26, clearcoat: 1, c
 const CAPS = { color: "#79848e", metalness: 1, roughness: 0.3, clearcoat: 0.6, clearcoatRoughness: 0.22 } as const;
 const MACHINED = { color: "#2b333b", metalness: 0.95, roughness: 0.42 } as const;
 const CA_OFFSET = new THREE.Vector2(0.0006, 0.0004);
+
+/** Fullscreen pool-of-light INSIDE the GL frame — same stops as the page CSS
+ *  (see backdrop.ts), so the canvas cross-fade at the trace beat is seamless.
+ *  Raw ShaderMaterial: no tone mapping, no fog — the hexes hit the framebuffer
+ *  exactly as CSS renders them. */
+function Backdrop() {
+  const geo = useMemo(() => {
+    const g = new THREE.BufferGeometry();
+    // one triangle covering NDC — cheaper and simpler than a quad
+    g.setAttribute("position", new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3));
+    return g;
+  }, []);
+  const mat = useMemo(() => {
+    // the composer's frame buffer is LINEAR (the final pass applies tone
+    // mapping + sRGB encode to everything) — feed it linear values or the
+    // encode washes the pool-of-light to grey
+    const [a, b, c] = BACKDROP_STOPS.map(([, hex]) => {
+      const col = new THREE.Color(hex).convertSRGBToLinear();
+      return [col.r, col.g, col.b] as [number, number, number];
+    });
+    const mid = BACKDROP_STOPS[1][0];
+    return new THREE.ShaderMaterial({
+      depthWrite: false,
+      depthTest: false,
+      fog: false,
+      vertexShader: `varying vec2 vUv; void main(){ vUv = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 1.0, 1.0); }`,
+      fragmentShader: `
+        varying vec2 vUv;
+        void main(){
+          // CSS geometry: centre (${BACKDROP_CENTER.x}, ${BACKDROP_CENTER.y} from top), radii ${BACKDROP_RADII.x}/${BACKDROP_RADII.y}
+          vec2 q = vec2((vUv.x - ${BACKDROP_CENTER.x.toFixed(3)}) / ${BACKDROP_RADII.x.toFixed(3)},
+                        (vUv.y - ${(1 - BACKDROP_CENTER.y).toFixed(3)}) / ${BACKDROP_RADII.y.toFixed(3)});
+          float d = clamp(length(q), 0.0, 1.0);
+          vec3 a = vec3(${a.map((v) => v.toFixed(4)).join(",")});
+          vec3 b = vec3(${b.map((v) => v.toFixed(4)).join(",")});
+          vec3 c = vec3(${c.map((v) => v.toFixed(4)).join(",")});
+          vec3 col = d < ${mid.toFixed(3)} ? mix(a, b, d / ${mid.toFixed(3)}) : mix(b, c, (d - ${mid.toFixed(3)}) / ${(1 - mid).toFixed(3)});
+          gl_FragColor = vec4(col, 1.0);
+        }`,
+    });
+  }, []);
+  return <mesh geometry={geo} material={mat} renderOrder={-1} frustumCulled={false} />;
+}
+
+/** Mounted INSIDE the Canvas's suspense boundary — its effect can only fire
+ *  once every suspended resource (the env HDR) has resolved. */
+function Ready({ onReady }: { onReady?: () => void }) {
+  useEffect(() => {
+    onReady?.();
+  }, [onReady]);
+  return null;
+}
 
 /** DEV forensic (?ngdbgray): raycast from screen centre and log what's actually
  *  in front of the camera — for diagnosing "mystery surface" frames. */
@@ -153,7 +215,7 @@ function seg(p: number): [Key, Key] {
   return [CAM[CAM.length - 2], CAM[CAM.length - 1]];
 }
 
-function Rig({ progress }: { progress: MutableRefObject<number> }) {
+function Rig({ progress, sheetRatio }: { progress: MutableRefObject<number>; sheetRatio?: MutableRefObject<number> }) {
   const { camera } = useThree();
   const tgt = useRef(new THREE.Vector3(0, 0.12, 0));
   useFrame(() => {
@@ -181,8 +243,15 @@ function Rig({ progress }: { progress: MutableRefObject<number> }) {
     camera.lookAt(tgt.current);
     // subtle dolly-zoom "breath" — the lens pushes in at each vessel visit
     const fov = 38 - interiorMax(p) * 5 + heroW * 10;
-    if (Math.abs(cam.fov - fov) > 0.01) {
+    // dock registration zoom (Phase 1): the canvas is full-bleed but the ink
+    // is drawn at SHEET scale — camera.zoom scales the NDC image uniformly
+    // about centre (sheet centre == canvas centre), which is an EXACT remap
+    // of the calibrated projection. Engages with the dock, releases with reg.
+    const zoomW = ss(p, 0.04, 0.1) * (1 - ss(p, 0.33, 0.42));
+    const zoom = lerp(1, Math.min(sheetRatio?.current ?? 1, 1), zoomW);
+    if (Math.abs(cam.fov - fov) > 0.01 || Math.abs(cam.zoom - zoom) > 0.001) {
       cam.fov = fov;
+      cam.zoom = zoom;
       cam.updateProjectionMatrix();
     }
   });
@@ -677,24 +746,28 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
   );
 }
 
-export default function ChromeStage({ progress, active }: Props) {
+export default function ChromeStage({ progress, active, sheetRatio, onReady }: Props) {
   return (
     <Canvas
       frameloop={active ? "always" : "never"}
       dpr={[1, 2]}
       camera={{ position: [0, 0.12, 8.8], fov: 38 }}
       // OPAQUE canvas: blending ghosted layers against an alpha framebuffer and
-      // letting the BROWSER composite produces a milky wash. The canvas sits
-      // UNDER the SVG plate, so it can own its dark studio backdrop.
+      // letting the BROWSER composite produces a milky wash. The full-bleed
+      // canvas paints its own pool-of-light (Backdrop) from the SAME stops as
+      // the page CSS — one continuous space, no seam at the cross-fade.
       gl={{ alpha: false, antialias: true, powerPreference: "high-performance" }}
       onCreated={({ gl, scene }) => {
         gl.toneMapping = THREE.ACESFilmicToneMapping;
         gl.toneMappingExposure = 0.98;
         gl.setClearColor("#0a121b", 1);
-        scene.background = new THREE.Color("#0a121b");
+        // far edges of the machine melt into the space's ambient tone —
+        // barely reaches the assembly, only the pipe extremities at distance
+        scene.fog = new THREE.Fog(BACKDROP_FOG, 12, 28);
       }}
       style={{ position: "absolute", inset: 0 }}
     >
+      <Backdrop />
       {/* Studio HDRI softbox reflections — SELF-HOSTED (public/hdri) so the 3D
           never depends on a third-party CDN. The SVG plate is the no-WebGL /
           reduced-motion fallback. */}
@@ -711,7 +784,8 @@ export default function ChromeStage({ progress, active }: Props) {
       <JourneyLights progress={progress} />
 
       <VesselAssembly progress={progress} />
-      <Rig progress={progress} />
+      <Rig progress={progress} sheetRatio={sheetRatio} />
+      <Ready onReady={onReady} />
       {typeof window !== "undefined" && new URLSearchParams(window.location.search).has("ngdbgray") && <DebugRay />}
 
       {!hidden("shadows") && (

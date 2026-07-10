@@ -1,9 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { gsap, ScrollTrigger } from "@/lib/gsap";
 import { useReducedMotion } from "@/lib/useReducedMotion";
+import { BACKDROP_CSS } from "./backdrop";
 import {
   ASSEMBLY_PATHS,
   ASSEMBLY_CONSTRUCTION,
@@ -56,9 +57,15 @@ export function LivingDrawing() {
   const reduced = useReducedMotion();
   const rootRef = useRef<HTMLElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
   const u3d = useRef(0); // the there-and-back scalar, shared with the 3D stage
+  // sheet height / viewport height — the full-bleed canvas needs it to zoom
+  // the dock registration back to SHEET scale (see Rig in ChromeStage)
+  const sheetRatio = useRef(0.99);
   const [webgl, setWebgl] = useState(false);
+  const [glReady, setGlReady] = useState(false);
+  const glReadyRef = useRef(false);
   // start rendering immediately — the journey is the first thing on screen, so
   // don't wait on the IntersectionObserver (which also fires unreliably under
   // headless virtual-time). The observer below still PAUSES it once off-screen.
@@ -67,6 +74,37 @@ export function LivingDrawing() {
   useEffect(() => {
     setWebgl(!reduced && hasWebGL());
   }, [reduced]);
+
+  const handleReady = useCallback(() => setGlReady(true), []);
+
+  // keep the registration ratio current across resizes/orientation changes
+  useEffect(() => {
+    const sheet = sheetRef.current;
+    if (!sheet) return;
+    const measure = () => {
+      const h = sheet.getBoundingClientRect().height;
+      const vh = window.innerHeight;
+      if (h > 0 && vh > 0) sheetRatio.current = h / vh;
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(sheet);
+    window.addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
+
+  // the SVG shaded still doubles as the POSTER: it holds the frame until the
+  // suspended Canvas (env HDR included) is actually live, then cross-fades out
+  // — no bare dark rectangle on first paint (Phase 1)
+  useEffect(() => {
+    glReadyRef.current = glReady;
+    if (!glReady || reduced) return;
+    const shade = svgRef.current?.querySelector<SVGGElement>(".jd-shade");
+    if (shade) gsap.to(shade, { opacity: 0, duration: 0.4, ease: "power1.out", overwrite: "auto" });
+  }, [glReady, reduced]);
 
   useEffect(() => {
     // namespaced key: a real-world "?jp=…" query param must not freeze the site
@@ -109,12 +147,16 @@ export function LivingDrawing() {
     const furniture = [".jd-note", ".jd-titleblock", ".jd-bomlist", ".jd-revtable"]
       .map((s) => root.querySelector<HTMLElement>(s))
       .filter(Boolean) as HTMLElement[];
+    // the sheet's drop shadow exists only while the paper does — a shadow
+    // outlining an invisible sheet was the old "card on a background" tell
+    const shadowEl = root.querySelector<HTMLElement>(".plate-shadow");
 
     // static fully-drawn plate for reduced motion. Also clear any stale tilt a
     // prior non-reduced fallback run wrote (raw setAttribute survives revert).
     if (reduced) {
       if (col) col.removeAttribute("transform");
       paper.forEach((e) => (e.style.opacity = "1"));
+      if (shadowEl) shadowEl.style.opacity = "1";
       if (shade) shade.style.opacity = "0";
       if (beds) beds.style.opacity = "1";
       if (bom) bom.style.opacity = "1";
@@ -130,7 +172,9 @@ export function LivingDrawing() {
 
     const ctx = gsap.context(() => {
       gsap.set(paper, { opacity: 0 });
-      gsap.set(shade, { opacity: webgl ? 0 : 1 }); // 3D chrome replaces the SVG still
+      // the still stays up as a poster until the GL scene is truly ready
+      // (the glReady effect fades it); without webgl it IS the machine
+      gsap.set(shade, { opacity: webgl && glReadyRef.current ? 0 : 1 });
       gsap.set([beds, bom, dimG], { opacity: 0 });
       gsap.set(dimLabel, { opacity: 0 });
       gsap.set(construct, { opacity: 1 });
@@ -163,6 +207,7 @@ export function LivingDrawing() {
       ink.forEach((p, i) => tl.to(p, { strokeDashoffset: 0, duration: span * 0.95, ease: "power2.inOut" }, 0.12 + i * span));
       // 3 — the world turns: paper rises, chrome dissolves, white ink settles to navy
       tl.to(paper, { opacity: 1, duration: 0.12, ease: "power1.inOut" }, 0.4);
+      if (shadowEl) tl.to(shadowEl, { opacity: 1, duration: 0.12, ease: "power1.inOut" }, 0.4);
       tl.to(furniture, { opacity: 1, duration: 0.12, ease: "power1.inOut" }, 0.42);
       if (!webgl) tl.to(shade, { opacity: 0, duration: 0.12, ease: "power1.inOut" }, 0.4);
       tl.to(inkG, { color: "#15324a", duration: 0.14, ease: "power1.inOut" }, 0.4);
@@ -266,14 +311,26 @@ export function LivingDrawing() {
   }, [webgl]);
 
   return (
-    <section ref={rootRef} className="plate" id="drawing" data-sheet="01" data-rev="C" data-name="GENERAL ARRANGEMENT">
+    <section
+      ref={rootRef}
+      className="plate"
+      id="drawing"
+      data-sheet="01"
+      data-rev="C"
+      data-name="GENERAL ARRANGEMENT"
+      // page + GL share one pool-of-light (backdrop.ts) — zero seam
+      style={{ background: BACKDROP_CSS }}
+    >
       <div className="plate-stick">
-        <div className="plate-sheet">
-          {webgl && (
-            <div className="plate-canvas" ref={canvasWrapRef}>
-              <ChromeStage progress={u3d} active={active} />
-            </div>
-          )}
+        {/* FULL-BLEED canvas (Phase 1): the machine floats in the whole
+            viewport; the vellum sheet is a prop that materialises over it */}
+        {webgl && (
+          <div className="plate-canvas" ref={canvasWrapRef}>
+            <ChromeStage progress={u3d} active={active} sheetRatio={sheetRatio} onReady={handleReady} />
+          </div>
+        )}
+        <div className="plate-sheet" ref={sheetRef}>
+          <div className="plate-shadow" aria-hidden="true" />
           <svg ref={svgRef} className="plate-svg" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMid meet">
             <defs>
               <radialGradient id="vellum" cx="46%" cy="40%" r="75%">
@@ -484,6 +541,8 @@ export function LivingDrawing() {
             ))}
           </div>
         </div>
+        {/* the DOM half of the unified film stock (GL half is the Noise pass) */}
+        <div className="plate-grain" aria-hidden="true" />
       </div>
     </section>
   );
