@@ -1,6 +1,7 @@
 import { Nav } from "@/components/Nav";
 import { LivingDrawing } from "@/components/blueprint/LivingDrawing";
 import { DrawingChrome } from "@/components/site/DrawingChrome";
+import { StaticStory } from "@/components/site/StaticStory";
 import { SiteSpine } from "@/components/site/SiteSpine";
 
 export default function Home() {
@@ -9,9 +10,12 @@ export default function Home() {
       <Nav />
       <DrawingChrome />
       <main>
-        {/* SHEET 01 — the 3D journey signature (chrome → blueprint → teardown). */}
+        {/* the pinned 3D journey carries the whole story via scroll beats */}
         <LivingDrawing />
-        {/* SHEET 02–09 — the rest of the drawing set, one bound document. */}
+        {/* reduced-motion fallback: the same story as a static document
+            (display:none for everyone else — see globals.css) */}
+        <StaticStory />
+        {/* the compact booking tail */}
         <SiteSpine />
       </main>
     </>

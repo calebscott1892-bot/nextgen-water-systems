@@ -2706,6 +2706,86 @@
   }
 }
 
+/* ── reduced-motion fallback (Slice 5): the static story document is hidden
+   for everyone by default; the media query below reveals it and collapses the
+   pinned journey so the static plate shows once, not for 1050svh ── */
+.static-story {
+  display: none;
+  background: #05080c;
+  padding: clamp(64px, 11vh, 130px) clamp(18px, 5vw, 48px);
+}
+.ss-inner {
+  max-width: 760px;
+  margin: 0 auto;
+  display: grid;
+  gap: clamp(38px, 6vh, 70px);
+}
+.ss-lead {
+  font-family: var(--font-draft, "Routed Gothic"), var(--font-mono), monospace;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  color: #7fa4bb;
+  border-bottom: 1px solid rgba(127, 216, 245, 0.22);
+  padding-bottom: 22px;
+}
+.ss-eyebrow {
+  display: block;
+  font-family: var(--font-draft, "Routed Gothic"), var(--font-mono), monospace;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: #29c2ee;
+}
+.ss-h {
+  margin-top: 10px;
+  font-family: var(--font-satoshi), sans-serif;
+  font-size: clamp(26px, 3.4vw, 40px);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.01em;
+  color: #eef7fc;
+}
+.ss-body {
+  margin-top: 12px;
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: #c6dcea;
+  max-width: 58ch;
+}
+.ss-rows {
+  margin-top: 16px;
+  display: grid;
+  gap: 7px;
+  max-width: 360px;
+}
+.ss-rows > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid rgba(127, 216, 245, 0.2);
+  padding-bottom: 5px;
+}
+.ss-rows dt {
+  font-family: var(--font-draft, "Routed Gothic"), var(--font-mono), monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: #8fb3c6;
+}
+.ss-rows dd {
+  margin: 0;
+  font-size: 13px;
+  color: #dff2fb;
+}
+.ss-stat {
+  display: inline-block;
+  margin-top: 14px;
+  padding: 5px 11px;
+  border: 1px solid rgba(41, 194, 238, 0.45);
+  font-family: var(--font-draft, "Routed Gothic"), var(--font-mono), monospace;
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  color: #bfe9ff;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .reveal {
     opacity: 1 !important;
@@ -2713,5 +2793,12 @@
   }
   .cursor {
     display: none !important;
+  }
+  /* collapse the pin so the static plate shows once, then the story reads */
+  .plate {
+    height: 118svh;
+  }
+  .static-story {
+    display: block;
   }
 }
