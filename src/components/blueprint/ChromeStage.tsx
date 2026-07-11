@@ -244,7 +244,7 @@ type Key = { p: number; pos: [number, number, number]; tgt: [number, number, num
    PROBLEM beat holds the mains-in side while contaminants gather, the PROOF
    beat holds the house-out side as clean water exits. */
 const CAM: Key[] = [
-  { p: 0.0, pos: [2.9, -0.5, 9.0], tgt: [-1.9, 0.15, 0] }, // hero ¾ — machine right of centre, the landing copy owns the left
+  { p: 0.0, pos: [3.2, -0.5, 9.7], tgt: [-2.9, 0.15, 0] }, // hero ¾ — machine pushed right so V1's STAGE label clears the headline; copy owns the left
   { p: 0.045, pos: [5.2, 1.0, 6.6], tgt: [0, 0, 0] }, // drift around
   { p: 0.075, pos: [0, 0.12, 8.8], tgt: [0, 0.12, 0] }, // front dock (trace)
   { p: 0.26, pos: [0, 0.12, 8.8], tgt: [0, 0.12, 0] }, // hold dock until the plate exits

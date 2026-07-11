@@ -601,15 +601,26 @@
     stroke-linejoin: round;
     vector-effect: non-scaling-stroke;
   }
-  .src-ridge--far { stroke: #2f6e9c; stroke-width: 1.1; opacity: 0.32; }
-  .src-ridge--mid { stroke: #4aa3cf; stroke-width: 1.5; opacity: 0.52; }
-  .src-hach { fill: none; stroke: #4aa3cf; stroke-width: 1; opacity: 0.4; }
+  .src-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+  .src-ridge--far { stroke: #2f6e9c; stroke-width: 0.8; opacity: 0.24; }
+  .src-ridge--far.is-index { stroke: #5b9cc4; stroke-width: 1.9; opacity: 0.5; }
+  .src-ridge--mid { stroke: #4aa3cf; stroke-width: 1; opacity: 0.4; }
+  .src-ridge--mid.is-index { stroke: #7fceef; stroke-width: 2.4; opacity: 0.72; }
+  .src-hach { fill: none; stroke: #4aa3cf; stroke-width: 0.9; opacity: 0.34; }
+  /* watercourses + surveyed spot-height that tie high ground to the source */
+  .src-drain { fill: none; stroke: #2f8fb8; stroke-width: 0.9; opacity: 0.3; stroke-linecap: round; }
+  .src-spot path { stroke: #6f8794; stroke-width: 1.1; opacity: 0.5; }
   .src-elev {
-    fill: #6f8794;
+    fill: #7f97a4;
     font-family: var(--font-mono), monospace;
-    font-size: 13px;
-    letter-spacing: 0.18em;
-    opacity: 0.6;
+    font-size: 14px;
+    letter-spacing: 0.12em;
+    opacity: 0.72;
+    /* void halo so the index contour is broken cleanly around the datum */
+    paint-order: stroke;
+    stroke: #06090f;
+    stroke-width: 4px;
+    stroke-linejoin: round;
   }
   /* drifting mist */
   .src-mist { z-index: 4; will-change: transform, opacity; }
@@ -632,27 +643,67 @@
     background: linear-gradient(90deg, transparent, rgba(150, 196, 219, 0.12) 45%, transparent);
     animation: srcDriftB 34s ease-in-out infinite alternate;
   }
+  .src-mist-c {
+    top: 63%;
+    height: 150px;
+    background: linear-gradient(90deg, transparent 10%, rgba(41, 194, 238, 0.09) 55%, transparent 92%);
+    animation: srcDriftA 44s ease-in-out infinite alternate-reverse;
+  }
   @keyframes srcDriftA { from { transform: translateX(-4%); } to { transform: translateX(5%); } }
   @keyframes srcDriftB { from { transform: translateX(4%); } to { transform: translateX(-5%); } }
-  /* the spring source */
+
+  /* survey furniture — north arrow + scale bar */
+  .src-survey { z-index: 4; will-change: transform, opacity; }
+  .src-north { fill: none; stroke: #6f8794; stroke-width: 1.3; }
+  .src-scale { stroke: #6f8794; stroke-width: 1.2; }
+  .src-scale-fill { fill: #6f8794; opacity: 0.55; }
+  .src-tick-t {
+    fill: #6f8794;
+    font-family: var(--font-mono), monospace;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+  }
+  /* clear-zone: a soft radial darken behind the hero copy column so no contour
+     ever crosses the words (the "lines through text" tell) */
+  .src-scrim {
+    z-index: 6;
+    background: radial-gradient(58% 62% at 26% 46%, #06090f 0%, rgba(6, 9, 15, 0.92) 34%, rgba(6, 9, 15, 0) 72%);
+    pointer-events: none;
+  }
+  /* the spring basin — irregular depression contours + benchmark */
   .src-pool { z-index: 5; will-change: transform, opacity; transform-origin: 50% 79%; }
-  .src-glow { fill: rgba(41, 194, 238, 0.12); filter: blur(30px); }
   .src-ring {
     fill: none;
     stroke: #29c2ee;
-    stroke-width: 1.1;
+    stroke-width: 1;
     vector-effect: non-scaling-stroke;
     opacity: 0.5; /* static default; JS drives it when animated */
   }
+  .src-ring.is-index { stroke-width: 1.7; opacity: 0.6; }
+  .src-basin-hach { fill: none; stroke: #2f8fb8; stroke-width: 0.9; opacity: 0.4; vector-effect: non-scaling-stroke; }
+  .src-refract { fill: none; stroke: #8fe6ff; stroke-width: 1.1; opacity: 0.55; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+  .src-bm-tri { fill: none; stroke: #cfeeff; stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+  .src-bm-dot { fill: #cfeeff; }
   .src-lead { stroke: #6f8794; stroke-width: 1; opacity: 0.5; }
-  .src-lead-dot { fill: #29c2ee; }
   .src-src-t {
     fill: #8fb4c6;
     font-family: var(--font-mono), monospace;
     font-size: 13px;
-    letter-spacing: 0.32em;
+    letter-spacing: 0.3em;
     text-anchor: middle;
+    paint-order: stroke;
+    stroke: #06090f;
+    stroke-width: 4px;
+    stroke-linejoin: round;
   }
+  /* the three shafts the source rises into at the hand-off (JS-driven) */
+  .src-shafts {
+    z-index: 7;
+    opacity: 0;
+    transform-origin: 50% 82%;
+    will-change: transform, opacity;
+  }
+  .src-shaft-base { fill: #8fe6ff; opacity: 0.7; }
   /* landing copy */
   .src-copy {
     z-index: 10;
@@ -708,12 +759,13 @@
     padding: 15px 26px;
     border-radius: 999px;
     text-decoration: none;
-    box-shadow: 0 10px 30px rgba(41, 194, 238, 0.28);
+    /* tight, deliberate rim — not a soft neon bloom */
+    box-shadow: 0 2px 10px rgba(41, 194, 238, 0.22), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
     transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
   }
   .src-cta:hover, .src-cta:focus-visible {
     transform: translateY(-2px);
-    box-shadow: 0 16px 40px rgba(41, 194, 238, 0.42);
+    box-shadow: 0 6px 18px rgba(41, 194, 238, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.18);
   }
   .src-ghost {
     font-family: var(--font-mono), monospace;
@@ -738,6 +790,10 @@
     animation: srcCue 2.4s ease-in-out infinite;
   }
   @keyframes srcCue { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.85; } }
+  /* film-grain tooth — a fine noise field so the void reads as inked paper
+     stock, not a flat black rectangle (the "3D shapes on black" tell) */
+  .src-noise { z-index: 19; pointer-events: none; opacity: 0.85; mix-blend-mode: screen; }
+  .src-noise svg { width: 100%; height: 100%; display: block; }
   .src-grain {
     z-index: 20;
     pointer-events: none;
@@ -754,7 +810,7 @@
     .src-sub { font-size: 16px; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .src-mist-a, .src-mist-b, .src-cue { animation: none; }
+    .src-mist-a, .src-mist-b, .src-mist-c, .src-cue { animation: none; }
   }
 
   .plate {
@@ -842,6 +898,18 @@
      into the journey ── */
   .pb--hero {
     max-width: 620px;
+    position: relative;
+    z-index: 0;
+  }
+  /* clear-zone behind the hero headline so the machine's STAGE labels never
+     read as a half-clipped word (e.g. "E 1") under the type */
+  .pb--hero::before {
+    content: "";
+    position: absolute;
+    inset: -46px -110px -34px -130px;
+    background: radial-gradient(74% 82% at 32% 44%, rgba(5, 8, 12, 0.82) 0%, rgba(5, 8, 12, 0.46) 44%, transparent 78%);
+    z-index: -1;
+    pointer-events: none;
   }
   .pbh-rule {
     display: flex;
