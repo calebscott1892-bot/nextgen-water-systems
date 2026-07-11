@@ -314,9 +314,10 @@ function Rig({ progress, sheetRatio }: { progress: MutableRefObject<number>; she
       camera.position.x *= 1 - heroW * 0.3;
       camera.position.y += heroW * 0.2;
       // the hero look-target is shoved left (machine right, copy left) on wide
-      // screens; on portrait there's no room for that — recentre it so the
-      // whole cage stays in frame above the stacked copy
+      // screens; on portrait there's no room for that — recentre it AND raise
+      // it so the machine drops into the lower frame, clear of the top copy
       tgt.current.x *= 1 - heroW * 0.85;
+      tgt.current.y += heroW * 1.05;
     }
     // dock registration zoom (Phase 1): the canvas is full-bleed but the ink
     // is drawn at SHEET scale — camera.zoom scales the NDC image uniformly
