@@ -552,6 +552,211 @@
   }
 
   /* ---- The Living Drawing (draughting plate) ---- */
+  /* ===========================================================================
+     THE SOURCE — drawn parallax landing (experiment/parallax-source-header).
+     A topographic mountain spring in pure contour ink, parallaxing by depth,
+     that scrolls INTO the journey. Shares BACKDROP_CSS so there is no seam
+     into the machine below. See components/site/SourceHeader.tsx.
+     =========================================================================== */
+  .src {
+    position: relative;
+    /* 200svh of scroll room for the parallax; the stage is pinned at 100svh */
+    min-height: 220svh;
+    overflow: clip;
+  }
+  .src-stick {
+    position: sticky;
+    top: 0;
+    height: 100svh;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .src-stick > * {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .src-stick svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .src-dust {
+    z-index: 1;
+    background-image:
+      radial-gradient(1.4px 1.4px at 18% 22%, rgba(174, 201, 216, 0.5), transparent 60%),
+      radial-gradient(1.2px 1.2px at 62% 14%, rgba(174, 201, 216, 0.4), transparent 60%),
+      radial-gradient(1.1px 1.1px at 82% 30%, rgba(174, 201, 216, 0.45), transparent 60%),
+      radial-gradient(1px 1px at 40% 34%, rgba(174, 201, 216, 0.35), transparent 60%),
+      radial-gradient(1.3px 1.3px at 8% 40%, rgba(174, 201, 216, 0.3), transparent 60%);
+    opacity: 0.7;
+    will-change: transform, opacity;
+  }
+  .src-far { z-index: 2; will-change: transform, opacity; }
+  .src-mid { z-index: 3; will-change: transform, opacity; }
+  .src-ridge {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .src-ridge--far { stroke: #2f6e9c; stroke-width: 1.1; opacity: 0.32; }
+  .src-ridge--mid { stroke: #4aa3cf; stroke-width: 1.5; opacity: 0.52; }
+  .src-hach { fill: none; stroke: #4aa3cf; stroke-width: 1; opacity: 0.4; }
+  .src-elev {
+    fill: #6f8794;
+    font-family: var(--font-mono), monospace;
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    opacity: 0.6;
+  }
+  /* drifting mist */
+  .src-mist { z-index: 4; will-change: transform, opacity; }
+  .src-mist span {
+    position: absolute;
+    left: -20%;
+    width: 140%;
+    height: 190px;
+    filter: blur(34px);
+    border-radius: 50%;
+  }
+  .src-mist-a {
+    top: 56%;
+    background: linear-gradient(90deg, transparent, rgba(150, 196, 219, 0.16) 30%, rgba(41, 194, 238, 0.14) 60%, transparent);
+    animation: srcDriftA 26s ease-in-out infinite alternate;
+  }
+  .src-mist-b {
+    top: 44%;
+    height: 130px;
+    background: linear-gradient(90deg, transparent, rgba(150, 196, 219, 0.12) 45%, transparent);
+    animation: srcDriftB 34s ease-in-out infinite alternate;
+  }
+  @keyframes srcDriftA { from { transform: translateX(-4%); } to { transform: translateX(5%); } }
+  @keyframes srcDriftB { from { transform: translateX(4%); } to { transform: translateX(-5%); } }
+  /* the spring source */
+  .src-pool { z-index: 5; will-change: transform, opacity; transform-origin: 50% 79%; }
+  .src-glow { fill: rgba(41, 194, 238, 0.12); filter: blur(30px); }
+  .src-ring {
+    fill: none;
+    stroke: #29c2ee;
+    stroke-width: 1.1;
+    vector-effect: non-scaling-stroke;
+    opacity: 0.5; /* static default; JS drives it when animated */
+  }
+  .src-lead { stroke: #6f8794; stroke-width: 1; opacity: 0.5; }
+  .src-lead-dot { fill: #29c2ee; }
+  .src-src-t {
+    fill: #8fb4c6;
+    font-family: var(--font-mono), monospace;
+    font-size: 13px;
+    letter-spacing: 0.32em;
+    text-anchor: middle;
+  }
+  /* landing copy */
+  .src-copy {
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 0 clamp(24px, 8vw, 132px);
+    padding-bottom: 6svh;
+    will-change: transform, opacity;
+  }
+  .src-rule {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-family: var(--font-mono), monospace;
+    font-size: 12px;
+    letter-spacing: 0.28em;
+    color: var(--muted);
+    margin-bottom: 26px;
+  }
+  .src-rule i {
+    width: clamp(40px, 8vw, 96px);
+    height: 1px;
+    background: linear-gradient(90deg, var(--cyan), transparent);
+    opacity: 0.7;
+  }
+  .src-h {
+    font-family: var(--font-satoshi), sans-serif;
+    font-weight: 700;
+    font-size: clamp(46px, 8.6vw, 108px);
+    line-height: 0.96;
+    letter-spacing: -0.02em;
+    color: var(--ice);
+    margin: 0;
+    text-shadow: 0 2px 40px rgba(0, 0, 0, 0.5);
+  }
+  .src-sub {
+    font-family: var(--font-hanken), sans-serif;
+    font-size: clamp(16px, 1.5vw, 20px);
+    line-height: 1.55;
+    color: #b9cbd6;
+    max-width: 46ch;
+    margin: 26px 0 0;
+  }
+  .src-actions { display: flex; align-items: center; gap: 22px; margin-top: 38px; flex-wrap: wrap; }
+  .src-cta {
+    font-family: var(--font-satoshi), sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: #04252f;
+    background: linear-gradient(180deg, #6fd7f2, var(--cyan));
+    padding: 15px 26px;
+    border-radius: 999px;
+    text-decoration: none;
+    box-shadow: 0 10px 30px rgba(41, 194, 238, 0.28);
+    transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
+  }
+  .src-cta:hover, .src-cta:focus-visible {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 40px rgba(41, 194, 238, 0.42);
+  }
+  .src-ghost {
+    font-family: var(--font-mono), monospace;
+    font-size: 12.5px;
+    letter-spacing: 0.16em;
+    color: var(--steel);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .src-ghost:hover, .src-ghost:focus-visible { color: var(--ice); border-color: var(--cyan); }
+  .src-cue {
+    z-index: 11;
+    inset: auto 0 26px 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    text-align: center;
+    font-family: var(--font-mono), monospace;
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    color: var(--muted);
+    animation: srcCue 2.4s ease-in-out infinite;
+  }
+  @keyframes srcCue { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.85; } }
+  .src-grain {
+    z-index: 20;
+    pointer-events: none;
+    background:
+      radial-gradient(120% 100% at 50% 36%, transparent 58%, rgba(3, 6, 10, 0.55) 100%);
+    mix-blend-mode: normal;
+  }
+  /* reduced motion: a still, fully-drawn source — no parallax, no hand-off */
+  .src--static { min-height: 100svh; }
+  .src--static .src-stick { position: relative; }
+  @media (max-width: 720px) {
+    .src-copy { padding-bottom: 10svh; align-items: flex-start; }
+    .src-h { font-size: clamp(40px, 12vw, 68px); }
+    .src-sub { font-size: 16px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .src-mist-a, .src-mist-b, .src-cue { animation: none; }
+  }
+
   .plate {
     position: relative;
     /* Slice 1: the journey carries the WHOLE story now — every beat needs
