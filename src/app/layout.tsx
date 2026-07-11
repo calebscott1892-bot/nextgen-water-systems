@@ -40,6 +40,21 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             with same-origin credentials — a crossorigin="anonymous" preload
             mismatches and double-downloads (verified via the console warning). */}
         <link rel="preload" href={asset("/hdri/studio_small_03_1k.hdr")} as="fetch" />
+        {/* Routed Gothic (SIL OFL — the digitised Leroy/drafting-template
+            lettering; licence in public/fonts). Declared here with asset()
+            because CSS url("/fonts/…") would skip the basePath and 404 on
+            Pages — the known raw-absolute-URL gotcha. */}
+        <style
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{
+            __html: `
+@font-face{font-family:"Routed Gothic";src:url(${asset("/fonts/routed-gothic.ttf")}) format("truetype");font-display:swap}
+@font-face{font-family:"Routed Gothic Wide";src:url(${asset("/fonts/routed-gothic-wide.ttf")}) format("truetype");font-display:swap}
+@font-face{font-family:"Routed Gothic Narrow";src:url(${asset("/fonts/routed-gothic-narrow.ttf")}) format("truetype");font-display:swap}
+@font-face{font-family:"Routed Gothic Half Italic";src:url(${asset("/fonts/routed-gothic-half-italic.ttf")}) format("truetype");font-display:swap}
+:root{--font-draft:"Routed Gothic";--font-draft-wide:"Routed Gothic Wide";--font-draft-narrow:"Routed Gothic Narrow";--font-draft-note:"Routed Gothic Half Italic"}`,
+          }}
+        />
       </head>
       <body>
         <SmoothScroll>

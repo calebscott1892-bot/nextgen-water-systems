@@ -178,6 +178,14 @@ export function LivingDrawing() {
   }, [glReady, reduced]);
 
   useEffect(() => {
+    // DEV/CAPTURE aid (?ngflat): collapse the pinned journey to a fixed 900px
+    // so a TALL-window headless capture can photograph the plate set below
+    // (100svh would still fill the tall window — svh scales with it)
+    if (new URLSearchParams(window.location.search).has("ngflat") && rootRef.current) {
+      rootRef.current.style.height = "900px";
+      const stick = rootRef.current.querySelector<HTMLElement>(".plate-stick");
+      if (stick) stick.style.height = "900px";
+    }
     // namespaced key: a real-world "?jp=…" query param must not freeze the site
     const raw = new URLSearchParams(window.location.search).get("ngjp");
     const v = raw === null ? NaN : parseFloat(raw);
@@ -278,9 +286,18 @@ export function LivingDrawing() {
       // 1 — construction "measuring" lays down over the chrome on the void
       con.forEach((p, i) => tl.to(p, { strokeDashoffset: 0, duration: 0.05, ease: "power1.out" }, 0.04 + i * 0.018));
       // 2 — WHITE ink traces over the live chrome, STRICTLY sequential so the
-      // pen-tip rides one stroke at a time (reads hand-drawn, never jumps)
-      const span = 0.34 / ink.length;
-      ink.forEach((p, i) => tl.to(p, { strokeDashoffset: 0, duration: span * 0.95, ease: "power2.inOut" }, 0.12 + i * span));
+      // pen-tip rides one stroke at a time. Phase 4 pen-plotter timing: each
+      // stroke's duration is proportional to its LENGTH (a constant pen
+      // speed), with a small pen-up gap between strokes — long sweeps take
+      // visibly longer than ticks, which is what hand-drawn reads as.
+      const lens = ink.map((p) => Math.max(p.getTotalLength(), 1));
+      const totalLen = lens.reduce((a, b) => a + b, 0);
+      let penAt = 0.12;
+      ink.forEach((p, i) => {
+        const slot = 0.34 * (lens[i] / totalLen);
+        tl.to(p, { strokeDashoffset: 0, duration: slot * 0.88, ease: "power2.inOut" }, penAt);
+        penAt += slot; // the remaining 12% of each slot is the pen lifting
+      });
       // 3 — the world turns: paper rises, chrome dissolves, white ink settles to navy
       tl.to(paper, { opacity: 1, duration: 0.12, ease: "power1.inOut" }, 0.4);
       if (shadowEl) tl.to(shadowEl, { opacity: 1, duration: 0.12, ease: "power1.inOut" }, 0.4);

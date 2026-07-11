@@ -940,12 +940,12 @@
     width: min(94vw, 1180px);
     padding: clamp(26px, 4.2vw, 70px);
     overflow: hidden;
-    /* same vellum + 5mm/25mm graph grid as the hero plate — one bound drawing set */
-    background-image: repeating-linear-gradient(0deg, rgba(15, 44, 59, 0.055) 0 1px, transparent 1px 100px),
-      repeating-linear-gradient(90deg, rgba(15, 44, 59, 0.055) 0 1px, transparent 1px 100px),
-      repeating-linear-gradient(0deg, rgba(15, 44, 59, 0.028) 0 1px, transparent 1px 20px),
-      repeating-linear-gradient(90deg, rgba(15, 44, 59, 0.028) 0 1px, transparent 1px 20px),
+    /* Phase 4: graph-grid backdrops are the classic AI tell — a real sheet is
+       plain vellum with a fibre grain; the measurement grid lives ONLY on the
+       hero plate, diegetically, during the trace */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.05'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E"),
       radial-gradient(120% 120% at 40% 20%, #f6f9fb 0%, #efe6d2 62%, #e3dcc8 100%);
+    background-blend-mode: multiply, normal;
     /* hero-plate border order: hairline OUTER, heavy INNER */
     border: 1px solid rgba(15, 44, 59, 0.55);
     box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55);
@@ -957,6 +957,23 @@
     inset: 7px;
     border: 1.6px solid #0f2c3b;
     pointer-events: none;
+  }
+  /* ISO 5457 sheet furniture: margin zone ticks (top + left), centering
+     marks mid-edge — the frame reads as a REAL drawing sheet, and because
+     the furniture visibly continues sheet to sheet, no section reads as
+     the end of the document */
+  .sheet-frame::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      repeating-linear-gradient(90deg, transparent 0 calc(12.5% - 1px), rgba(15, 44, 59, 0.4) calc(12.5% - 1px) 12.5%) top / 100% 7px no-repeat,
+      repeating-linear-gradient(0deg, transparent 0 calc(25% - 1px), rgba(15, 44, 59, 0.4) calc(25% - 1px) 25%) left / 7px 100% no-repeat,
+      linear-gradient(rgba(15, 44, 59, 0.65), rgba(15, 44, 59, 0.65)) top center / 1.5px 14px no-repeat,
+      linear-gradient(rgba(15, 44, 59, 0.65), rgba(15, 44, 59, 0.65)) bottom center / 1.5px 14px no-repeat,
+      linear-gradient(rgba(15, 44, 59, 0.65), rgba(15, 44, 59, 0.65)) left center / 14px 1.5px no-repeat,
+      linear-gradient(rgba(15, 44, 59, 0.65), rgba(15, 44, 59, 0.65)) right center / 14px 1.5px no-repeat;
   }
   .sheet-head {
     position: relative;
@@ -974,7 +991,8 @@
     font-weight: 600;
   }
   .sheet-kicker {
-    color: #5a728a;
+    /* was #5a728a — near-invisible against the header band */
+    color: #2c4a63;
   }
   .sheet-tick {
     margin-left: auto;
@@ -1218,6 +1236,31 @@
   .detail-fill {
     fill: rgba(40, 80, 111, 0.07);
     stroke: none;
+  }
+  /* Phase 4 — Detail A drafting furniture */
+  .lw-centre2 {
+    stroke: #86a8c3;
+    stroke-width: 0.9;
+    stroke-dasharray: 14 5 2.5 5; /* long-short centreline convention */
+    opacity: 0.55;
+  }
+  .dglyph {
+    stroke: #24506b;
+    stroke-width: 1.1;
+    fill: none;
+    opacity: 0.85;
+  }
+  .dglyph--fill {
+    fill: rgba(36, 80, 107, 0.55);
+    stroke: none;
+  }
+  .detail-dot {
+    fill: #24506b;
+  }
+  .detail-tag-t {
+    font-size: 12px;
+    fill: #16456c;
+    letter-spacing: 0.08em;
   }
   .detail-callouts .dc {
     position: absolute;
@@ -1686,11 +1729,10 @@
     position: relative;
     max-width: 1180px;
     margin: 0 auto;
-    background-image: repeating-linear-gradient(0deg, rgba(15, 44, 59, 0.05) 0 1px, transparent 1px 100px),
-      repeating-linear-gradient(90deg, rgba(15, 44, 59, 0.05) 0 1px, transparent 1px 100px),
-      repeating-linear-gradient(0deg, rgba(15, 44, 59, 0.025) 0 1px, transparent 1px 20px),
-      repeating-linear-gradient(90deg, rgba(15, 44, 59, 0.025) 0 1px, transparent 1px 20px),
+    /* de-gridded (Phase 4) — plain vellum, same fibre grain as the sheets */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.05'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E"),
       radial-gradient(120% 120% at 40% 0%, #f6f9fb, #e6ddc9);
+    background-blend-mode: multiply, normal;
     border: 1px solid rgba(15, 44, 59, 0.55);
     padding: clamp(20px, 3vw, 40px);
     color: #34495a;
@@ -2151,6 +2193,55 @@
     .jd-revtable {
       display: none;
     }
+  }
+
+  /* ── Phase 4: the drawing LETTERS like a drafting template ──
+     Routed Gothic is the digitised Leroy lettering-guide face (SIL OFL,
+     licence in public/fonts). Everywhere the DRAWING speaks — eyebrows,
+     dimensions, tables, title blocks, callouts — it letters; the marketing
+     voice (Satoshi headlines, Hanken body) stays typeset. */
+  .jd-eyebrow,
+  .jd-rev,
+  .jd-tb-grid,
+  .jd-bomlist,
+  .sheet-kicker,
+  .sheet-no,
+  .sheet-fig,
+  .callout-label,
+  .callout-note,
+  .callout-value,
+  .callout-balloon,
+  .tbf-grid,
+  .tbf-rev,
+  .tbf-rule,
+  .tbf-stamp,
+  .chrome-tb,
+  .chrome-rev,
+  .schedule,
+  .schedule-stamp,
+  .pb-eyebrow,
+  .pb-stat,
+  .pb-cue,
+  .xlabel,
+  .process-next,
+  .jd-stamp-cta,
+  .notes-col,
+  .flow-list,
+  .process-n,
+  .process-t {
+    font-family: var(--font-draft, "Routed Gothic"), var(--font-mono), monospace;
+  }
+  /* dimensions + balloon figures letter NARROW, like a 3.5mm template */
+  .jd-dim-t,
+  .jd-balloon-t,
+  .flow-dim,
+  .flow-io,
+  .detail-tag-t {
+    font-family: var(--font-draft-narrow, "Routed Gothic Narrow"), var(--font-mono), monospace;
+  }
+  /* the draughtsman's note takes the 22.5° half-italic slant */
+  .jd-note p {
+    font-family: var(--font-draft-note, "Routed Gothic Half Italic"), var(--font-mono), monospace;
   }
 
   .reveal {

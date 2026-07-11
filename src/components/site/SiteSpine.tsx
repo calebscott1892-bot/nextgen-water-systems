@@ -74,21 +74,101 @@ function ProblemPlate() {
           <p className="sheet-fig">DETAIL A · SCALE 4:1 · presence and levels confirmed by your free in-home test*</p>
         </div>
         <div className="detail-wrap">
+          {/* Phase 4: a REAL drafting detail — heavy boundary, centreline
+              crosshair, contaminant glyph clusters per quadrant, elbowed
+              leaders FROM each feature, and the detail tag on the rim */}
           <svg viewBox="0 0 420 420" className="detail-svg" aria-hidden="true">
-            <circle className="lw-draw" cx="210" cy="210" r="150" pathLength={1} />
             <circle className="detail-fill" cx="210" cy="210" r="150" />
-            {items.map((it) => {
+            {/* centreline crosshair (hairline, long-short dash convention —
+                static: its dasharray must not fight the draw-on system) */}
+            <path className="lw-centre2" d="M210 48 V372 M48 210 H372" fill="none" />
+            {/* boundary — the one HEAVY line (ISO 2:1 discipline) */}
+            <circle className="lw-draw lw-heavy2" cx="210" cy="210" r="150" pathLength={1} fill="none" />
+            {/* contaminant glyph clusters + elbowed leaders */}
+            {items.map((it, idx) => {
               const rad = (it.a * Math.PI) / 180;
-              // extend past the r=150 circle so the leader visibly reaches its callout
-              const x = 210 + Math.cos(rad) * 172;
-              const y = 210 + Math.sin(rad) * 172;
-              return <line key={it.n} className="lw-draw lw-lead" x1="210" y1="210" x2={x} y2={y} pathLength={1} />;
+              const cos = Math.cos(rad);
+              const sin = Math.sin(rad);
+              const cx = 210 + cos * 82;
+              const cy = 210 + sin * 82;
+              // leader: feature dot → radial run → horizontal shelf toward the callout
+              const fx = 210 + cos * 96;
+              const fy = 210 + sin * 96;
+              const rx = 210 + cos * 162;
+              const ry = 210 + sin * 162;
+              const shelf = cos >= 0 ? 26 : -26;
+              const delay = `${0.7 + idx * 0.15}s`;
+              const J = [
+                [-13, -5], [3, -15], [15, -2], [-4, 11], [11, 13], [-17, 6], [5, 3], [-8, -16], [17, 11],
+              ] as const;
+              return (
+                <g key={it.n}>
+                  {idx === 0 && // CHLORINE — dissolved gas rings
+                    J.slice(0, 6).map(([dx, dy], k) => (
+                      <circle key={k} className="dglyph" cx={cx + dx} cy={cy + dy} r={2.6 + (k % 3)} />
+                    ))}
+                  {idx === 1 && // LEAD — dense metallic flecks
+                    J.slice(0, 6).map(([dx, dy], k) => (
+                      <rect
+                        key={k}
+                        className="dglyph--fill"
+                        x={cx + dx - 2.4}
+                        y={cy + dy - 2.4}
+                        width={4.8}
+                        height={4.8}
+                        transform={`rotate(${k * 23} ${cx + dx} ${cy + dy})`}
+                      />
+                    ))}
+                  {idx === 2 && ( // IRON & H2S — staining blobs + gas bubbles
+                    <>
+                      {J.slice(0, 4).map(([dx, dy], k) => (
+                        <ellipse key={k} className="dglyph--fill" cx={cx + dx} cy={cy + dy} rx={4.4 - k * 0.5} ry={3.2 - k * 0.4} />
+                      ))}
+                      {J.slice(4, 7).map(([dx, dy], k) => (
+                        <circle key={`b${k}`} className="dglyph" cx={cx + dx * 0.8} cy={cy + dy * 0.8 - 12} r={1.8} />
+                      ))}
+                    </>
+                  )}
+                  {idx === 3 && ( // SEDIMENT & SCALE — grit + crystal ticks
+                    <>
+                      {J.map(([dx, dy], k) => (
+                        <circle key={k} className="dglyph--fill" cx={cx + dx} cy={cy + dy} r={1.2 + (k % 2) * 0.8} />
+                      ))}
+                      {J.slice(0, 3).map(([dx, dy], k) => (
+                        <path
+                          key={`t${k}`}
+                          className="dglyph"
+                          d={`M${cx + dx * 1.4} ${cy + dy * 1.4} l4 0 l-2 -4 z`}
+                        />
+                      ))}
+                    </>
+                  )}
+                  {/* feature dot + elbowed leader (staggered draw-in) */}
+                  <circle className="detail-dot" cx={fx} cy={fy} r={2.2} />
+                  <path
+                    className="lw-draw lw-lead"
+                    style={{ transitionDelay: delay }}
+                    d={`M${fx} ${fy} L${rx} ${ry} h${shelf}`}
+                    pathLength={1}
+                    fill="none"
+                  />
+                </g>
+              );
             })}
+            {/* detail tag on the rim, drafting convention */}
+            <circle className="lw-draw lw-hair2" cx="316" cy="104" r="14" pathLength={1} fill="none" />
+            <text className="detail-tag-t" x="316" y="109" textAnchor="middle">
+              A
+            </text>
+            <text className="detail-tag-t" x="338" y="99">
+              SCALE 4:1
+            </text>
           </svg>
           <div className="detail-callouts">
             {items.map((it) => {
               // anchor each callout from the SAME angle as its SVG leader so
-              // text can never pile up — leader tips at r≈41%, callouts at 52%
+              // text can never pile up — leader shelves end ~r45%, callouts
+              // at 46% (52% clipped against the sheet frame's overflow)
               const rad = (it.a * Math.PI) / 180;
               const dx = Math.cos(rad);
               const dy = Math.sin(rad);
@@ -101,7 +181,7 @@ function ProblemPlate() {
                   label={it.label}
                   note={it.note}
                   className="dc"
-                  style={{ left: `${50 + dx * 52}%`, top: `${50 + dy * 52}%`, transform: `translate(${tx}, ${ty})` }}
+                  style={{ left: `${50 + dx * 46}%`, top: `${50 + dy * 46}%`, transform: `translate(${tx}, ${ty})` }}
                 />
               );
             })}
