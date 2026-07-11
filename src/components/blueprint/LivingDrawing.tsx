@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { gsap, ScrollTrigger } from "@/lib/gsap";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 import { BACKDROP_CSS } from "./backdrop";
+import { STORY_BEATS } from "@/content/journeyStory";
 import {
   ASSEMBLY_PATHS,
   ASSEMBLY_CONSTRUCTION,
@@ -42,76 +43,9 @@ function hasWebGL(): boolean {
 const INK = [...ASSEMBLY_PATHS].filter((p) => p.id !== "dim-width").sort((a, b) => a.order - b.order);
 const DIM = ASSEMBLY_PATHS.find((p) => p.id === "dim-width")!;
 
-/** Phase 2 — the copy beats that ride the journey. Each enters/exits over a
- *  window of the raw journey scalar p (fade margin f), scrubbed by applyFrame
- *  so they're fully reversible. Max ~2 sentences + 1 stat per beat; the
- *  vessel-to-vessel slides stay copy-free. */
-type Beat = {
-  id: string;
-  a: number;
-  b: number;
-  f: number;
-  /** FULL literal class name — Tailwind's @layer scanner purges classes it
-   *  can't find as literals in source, so never construct these */
-  pos: "pb--left" | "pb--right" | "pb--tl" | "pb--bc";
-  eyebrow: string;
-  h: string;
-  body: string;
-  stat?: string;
-  cta?: boolean;
-  cue?: string;
-};
-const BEATS: Beat[] = [
-  {
-    id: "hero", a: -0.05, b: 0.075, f: 0.03, pos: "pb--left",
-    eyebrow: "NGW-01 · WHOLE-HOME FILTRATION",
-    h: "One machine at the mains.",
-    body: "Three stainless vessels feed every tap in the house filtered water — no jugs, no under-sink clutter.",
-    cta: true,
-    cue: "SCROLL — THE DRAWING EXPLAINS ITSELF",
-  },
-  {
-    id: "run", a: 0.37, b: 0.445, f: 0.025, pos: "pb--left",
-    eyebrow: "INSIDE THE MACHINE",
-    h: "The water run.",
-    body: "Raw water in at vessel one, clean water out at three. Follow it through each stage.",
-  },
-  {
-    id: "s1", a: 0.45, b: 0.575, f: 0.022, pos: "pb--right",
-    eyebrow: "STAGE 01 · GRADED SEDIMENT",
-    h: "The coarse work, first.",
-    body: "Three graded layers catch grit, rust and silt, so the finer media behind them never clogs early.",
-    stat: "10 / 5 / 1 µm*",
-  },
-  {
-    id: "s2", a: 0.565, b: 0.67, f: 0.022, pos: "pb--left",
-    eyebrow: "STAGE 02 · KDF 55/85 + CARBON",
-    h: "The redox bed.",
-    body: "Copper-zinc granules trade electrons with what's dissolved — metals bind to the media, chlorine converts. Coconut carbon polishes taste behind it.",
-    stat: "up to 18-month cartridge life*",
-  },
-  {
-    id: "s3", a: 0.66, b: 0.765, f: 0.022, pos: "pb--right",
-    eyebrow: "STAGE 03 · LIMESCALE CARBON",
-    h: "The finish.",
-    body: "Scale-reduction media changes how minerals crystallise, so they rinse through instead of coating your appliances.",
-    stat: "1 µm final polish*",
-  },
-  {
-    id: "service", a: 0.79, b: 0.925, f: 0.025, pos: "pb--tl",
-    eyebrow: "SERVICEABLE BY DESIGN",
-    h: "Heads lift. Cartridges swap.",
-    body: "The housings stay plumbed for life — a cartridge change takes minutes. Tap a label to read each part.",
-  },
-  {
-    // left column — the settled machine owns the centre of the frame
-    id: "handoff", a: 0.93, b: 2, f: 0.03, pos: "pb--left",
-    eyebrow: "THAT'S THE MACHINE",
-    h: "The drawing set continues.",
-    body: "Proof, install and booking — cont'd on the sheets below.",
-    cue: "CONT'D ON SHT 02 ↓",
-  },
-];
+/** The copy beats that ride the journey — the WHOLE site's story, absorbed
+ *  (Slice 1). Data lives in src/content/journeyStory.ts; windows are scrubbed
+ *  by applyFrame so every beat is fully reversible. */
 
 const STROKE: Record<string, [string, number]> = {
   centre: ["#86a8c3", 1],
@@ -320,15 +254,14 @@ export function LivingDrawing() {
       // which must apply without any scroll event ever firing)
       const applyFrame = (p: number) => {
         {
-          // The 3D journey owns the whole scroll (orbit → dock → rotate → through
-          // → split → settle). The blueprint round trip is ONE early act: a
-          // windowed there-and-back over p∈[0.10, 0.36] — starting only once the
-          // camera has DOCKED, so the ink never traces over a moving model.
-          const bp = gsap.utils.clamp(0, 1, gsap.utils.mapRange(0.1, 0.36, 0, 1, p));
-          // trapezoid, not triangle: draw in over the first 30%, HOLD the finished
-          // plate through the middle (widened — the plate is worth reading), and
-          // un-draw over the last 30%
-          const bpU = gsap.utils.clamp(0, 1, Math.min(bp / 0.3, (1 - bp) / 0.3));
+          // The 3D journey owns the whole scroll. The blueprint round trip is
+          // ONE early act: a windowed there-and-back over p∈[0.075, 0.26] of
+          // the LENGTHENED pin — starting only once the camera has DOCKED, so
+          // the ink never traces over a moving model.
+          const bp = gsap.utils.clamp(0, 1, gsap.utils.mapRange(0.075, 0.26, 0, 1, p));
+          // trapezoid: draw in over the first 28%, HOLD the finished plate
+          // through the middle, un-draw over the last 28%
+          const bpU = gsap.utils.clamp(0, 1, Math.min(bp / 0.28, (1 - bp) / 0.28));
           tl.progress(bpU);
 
           // Phase 2 — the copy beats: window each HUD element on the raw p
@@ -650,14 +583,25 @@ export function LivingDrawing() {
             ))}
           </div>
         </div>
-        {/* Phase 2 — the copy beats that ride the journey (scrubbed windows,
-            driven from applyFrame; positions leave the parked vessel clear) */}
+        {/* THE STORY rides the journey (Slice 1) — problem, stages, proof,
+            credibility, benefits, install, hand-off; scrubbed windows driven
+            from applyFrame; positions leave the framed machine clear */}
         <div className="plate-hud">
-          {BEATS.map((bt) => (
+          {STORY_BEATS.map((bt) => (
             <div key={bt.id} className={`pbeat ${bt.pos}`} data-a={bt.a} data-b={bt.b} data-f={bt.f}>
               <span className="pb-eyebrow">{bt.eyebrow}</span>
               <h2 className="pb-h">{bt.h}</h2>
               <p className="pb-body">{bt.body}</p>
+              {bt.rows && (
+                <dl className="pb-rows">
+                  {bt.rows.map(([k, v]) => (
+                    <div key={k}>
+                      <dt>{k}</dt>
+                      <dd>{v}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
               {bt.stat && <span className="pb-stat">{bt.stat}</span>}
               {bt.cta && (
                 <a className="pb-cta" href="#plate-cta">

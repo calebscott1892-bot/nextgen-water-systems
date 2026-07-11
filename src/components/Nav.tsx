@@ -18,15 +18,11 @@ export function Nav() {
           </svg>
           Next&nbsp;Gen
         </Link>
+        {/* Slice 1: the story lives inside the journey — the nav is the
+            drawing and the one CTA */}
         <nav className="nav-links" aria-label="Primary">
-          <a className="navlink" href="#plate-flowtest" data-cursor>
-            The system
-          </a>
-          <a className="navlink" href="#plate-benchmark" data-cursor>
-            Performance
-          </a>
-          <a className="navlink" href="#plate-process" data-cursor>
-            How it works
+          <a className="navlink" href="#drawing" data-cursor>
+            The drawing
           </a>
           <Button variant="ghost" href="#plate-cta">
             Book water test

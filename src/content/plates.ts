@@ -11,15 +11,10 @@
  */
 export type Revision = { rev: string; sheet: string; desc: string; id: string };
 
+/** Slice 1: the story lives INSIDE the journey now — the only destination
+ *  below it is the booking tail. */
 export const SITE_REVISIONS: Revision[] = [
-  { rev: "D", sheet: "02", desc: "GENERAL NOTES", id: "plate-trust" },
-  { rev: "E", sheet: "03", desc: "CONTAMINANT SCHEDULE", id: "plate-problem" },
-  { rev: "F", sheet: "04", desc: "SECTION A–A — FLOW TEST", id: "plate-flowtest" },
-  { rev: "G", sheet: "05", desc: "TEST SCHEDULE", id: "plate-benchmark" },
-  { rev: "H", sheet: "06", desc: "APPROVALS BLOCK", id: "plate-rnd" },
-  { rev: "J", sheet: "07", desc: "IN-SERVICE NOTES", id: "plate-benefits" },
-  { rev: "K", sheet: "08", desc: "INSTALL SEQUENCE", id: "plate-process" },
-  { rev: "L", sheet: "09", desc: "APPROVED FOR ISSUE", id: "plate-cta" },
+  { rev: "D", sheet: "02", desc: "BOOKING — APPROVED FOR ISSUE", id: "plate-cta" },
 ];
 
 export const CONTACT = {

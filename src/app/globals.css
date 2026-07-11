@@ -554,7 +554,9 @@
   /* ---- The Living Drawing (draughting plate) ---- */
   .plate {
     position: relative;
-    height: 600svh;
+    /* Slice 1: the journey carries the WHOLE story now — every beat needs
+       real dwell, so the pin is 1050svh (was 600) */
+    height: 1050svh;
     /* subtle studio pool-of-light so the chrome sits in depth, not flat black */
     background: radial-gradient(50% 42% at 50% 40%, #0a141c 0%, #06090f 58%, #05080c 100%);
   }
@@ -671,6 +673,35 @@
     letter-spacing: 0.1em;
     color: #bfe9ff;
   }
+  /* drawn mini-schedule inside a beat (the PROOF figures) */
+  .pb-rows {
+    margin-top: 16px;
+    display: grid;
+    gap: 7px;
+    max-width: 340px;
+  }
+  .pb-rows > div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+    border-bottom: 1px solid rgba(127, 216, 245, 0.22);
+    padding-bottom: 5px;
+  }
+  .pb-rows dt {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: #8fb3c6;
+  }
+  .pb-rows dd {
+    margin: 0;
+    font-size: 13px;
+    color: #dff2fb;
+  }
+  .pb--bc .pb-rows {
+    margin-inline: auto;
+  }
+
   .pb-cta {
     display: inline-block;
     margin-top: 18px;
@@ -2242,6 +2273,76 @@
   /* the draughtsman's note takes the 22.5° half-italic slant */
   .jd-note p {
     font-family: var(--font-draft-note, "Routed Gothic Half Italic"), var(--font-mono), monospace;
+  }
+
+  /* ── THE TAIL (Slice 1) — one compact close in the same dark language ── */
+  .tail {
+    position: relative;
+    min-height: 88svh;
+    display: grid;
+    place-items: center;
+    background: radial-gradient(60% 50% at 50% 38%, #0a141c 0%, #06090f 60%, #05080c 100%);
+    padding: clamp(70px, 12vh, 150px) clamp(18px, 4vw, 48px);
+    scroll-margin-top: 90px;
+  }
+  .tail-inner {
+    max-width: 760px;
+    text-align: center;
+  }
+  .tail-eyebrow {
+    display: block;
+    font-family: var(--font-draft, "Routed Gothic"), var(--font-mono), monospace;
+    font-size: 11px;
+    letter-spacing: 0.24em;
+    color: #29c2ee;
+  }
+  .tail-h {
+    margin-top: 18px;
+    font-family: var(--font-satoshi), sans-serif;
+    font-size: clamp(40px, 6.4vw, 84px);
+    font-weight: 700;
+    line-height: 0.98;
+    letter-spacing: -0.015em;
+    color: #eef7fc;
+  }
+  .tail-cyan {
+    color: #29c2ee;
+  }
+  .tail-p {
+    margin: 22px auto 0;
+    max-width: 52ch;
+    font-size: 16px;
+    line-height: 1.6;
+    color: #b9d2e2;
+  }
+  .tail-actions {
+    margin-top: 32px;
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .tail-note {
+    margin-top: 14px;
+    font-family: var(--font-draft, "Routed Gothic"), var(--font-mono), monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    color: #6b8798;
+  }
+  .tail-rule {
+    margin: 48px auto 0;
+    width: min(560px, 80%);
+    height: 1px;
+    background: rgba(127, 216, 245, 0.18);
+  }
+  .tail-fine {
+    margin: 18px auto 0;
+    max-width: 68ch;
+    font-family: var(--font-draft, "Routed Gothic"), var(--font-mono), monospace;
+    font-size: 11px;
+    line-height: 1.7;
+    letter-spacing: 0.06em;
+    color: #74889a;
   }
 
   .reveal {

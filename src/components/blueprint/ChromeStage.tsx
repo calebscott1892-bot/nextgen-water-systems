@@ -13,14 +13,15 @@ import { BACKDROP_STOPS, BACKDROP_CENTER, BACKDROP_RADII, BACKDROP_FOG } from ".
  * bracket/manifold, plumbed in series (Clear2O FHWR-3SI-20 architecture, no RO),
  * rendered in the brand's brushed-steel language. ONE scalar (journey progress p)
  * drives everything:
- *   0.00–0.10  hero + slow drift (meet the assembly)
- *   0.10–0.33  front DOCK (held) — the SVG white-ink trace + plate run here
- *   0.33–0.44  re-frame, approach vessel 1
- *   0.44–0.74  THE WATER RUN — visit V1 → V2 → V3; each sump ghosts in turn to
+ *   0.000–0.075  hero + slow drift (meet the assembly)
+ *   0.075–0.26  front DOCK (held) — the SVG white-ink trace + plate run here
+ *   0.26–0.37  PROBLEM beat (mains-in side) → approach vessel 1
+ *   0.37–0.70  THE WATER RUN — visit V1 → V2 (double dwell) → V3; each sump
  *              reveal its cartridge; flow guides read the true radial path
  *              (down the annulus → in through the media wall → up the core)
- *   0.74–0.90  pull back + service EXPLODE: heads lift, cartridges rise, labels
- *   0.90–1.00  reassemble + settle
+ *   0.70–0.78  PROOF (house-out side) → CREDIBILITY orbit
+ *   0.78–0.92  service EXPLODE: heads lift, cartridges rise, labels + benefits
+ *   0.92–1.00  reassemble (INSTALL beat) + settle → booking tail
  *
  * Stage order per the client's spec sheet: 1 graded sediment → 2 KDF 55/85 +
  * coconut carbon (the redox bed) → 3 limescale-reduction carbon.
@@ -73,14 +74,16 @@ const VESSELS = [
 
 /** where each vessel's water-run beat parks (mid interior window) — the
  *  click-a-vessel scroll target */
-const VESSEL_BEAT_P = [0.5, 0.61, 0.7] as const;
+const VESSEL_BEAT_P = [0.425, 0.52, 0.635] as const;
 
 /** per-vessel interior windows — the camera parks at each vessel while its
- *  sump ghosts. Shared by the assembly, the lights and the camera breath. */
+ *  sump ghosts. Shared by the assembly, the lights and the camera breath.
+ *  Slice-1 map (1050svh pin): V2 gets DOUBLE dwell — the redox bed is the
+ *  machine's signature chemistry. */
 function interiorWindows(p: number): [number, number, number] {
-  const w1 = ss(p, 0.44, 0.48) * (1 - ss(p, 0.55, 0.58));
-  const w2 = ss(p, 0.55, 0.58) * (1 - ss(p, 0.645, 0.675));
-  const w3 = ss(p, 0.645, 0.675) * (1 - ss(p, 0.74, 0.78));
+  const w1 = ss(p, 0.37, 0.405) * (1 - ss(p, 0.445, 0.47));
+  const w2 = ss(p, 0.445, 0.47) * (1 - ss(p, 0.575, 0.6));
+  const w3 = ss(p, 0.575, 0.6) * (1 - ss(p, 0.675, 0.7));
   return [w1, w2, w3];
 }
 const interiorMax = (p: number) => Math.max(...interiorWindows(p));
@@ -148,7 +151,7 @@ function FocusRig({ progress, dof }: { progress: MutableRefObject<number>; dof: 
     const p = progress.current;
     const w = interiorWindows(p);
     const through = Math.max(...w);
-    const dockW = ss(p, 0.04, 0.1) * (1 - ss(p, 0.36, 0.44));
+    const dockW = ss(p, 0.03, 0.075) * (1 - ss(p, 0.26, 0.33));
     const sum = w[0] + w[1] + w[2];
     const x = sum > 0.001 ? (w[0] * VESSELS[0].x + w[1] * VESSELS[1].x + w[2] * VESSELS[2].x) / sum : 0;
     if (eff.target) eff.target.set(x, -0.1, 0);
@@ -233,21 +236,26 @@ function JourneyLights({ progress }: { progress: MutableRefObject<number> }) {
 
 /* ---- camera rail (pos + look target), keyed to p ---- */
 type Key = { p: number; pos: [number, number, number]; tgt: [number, number, number] };
+/* Slice-1 rail (1050svh pin): the sales story gets its own poses — the
+   PROBLEM beat holds the mains-in side while contaminants gather, the PROOF
+   beat holds the house-out side as clean water exits. */
 const CAM: Key[] = [
   { p: 0.0, pos: [3.4, -0.5, 8.6], tgt: [0, 0.15, 0] }, // hero ¾
-  { p: 0.06, pos: [5.2, 1.0, 6.6], tgt: [0, 0, 0] }, // drift around
-  { p: 0.1, pos: [0, 0.12, 8.8], tgt: [0, 0.12, 0] }, // front dock (trace)
-  { p: 0.36, pos: [0, 0.12, 8.8], tgt: [0, 0.12, 0] }, // hold dock until the plate exits (widened hold, Phase 2)
-  { p: 0.4, pos: [0, 0.1, 6.8], tgt: [0, 0, 0] }, // re-frame, push in
-  { p: 0.44, pos: [-1.9, 0.05, 4.6], tgt: [-1.9, -0.1, 0] }, // arrive V1
-  { p: 0.55, pos: [-1.9, -0.05, 4.1], tgt: [-1.9, -0.15, 0] }, // slow push through V1
-  { p: 0.58, pos: [0, 0.05, 4.6], tgt: [0, -0.1, 0] }, // slide to V2 (KDF)
-  { p: 0.645, pos: [0, -0.05, 4.1], tgt: [0, -0.15, 0] }, // push through V2
-  { p: 0.675, pos: [1.9, 0.05, 4.6], tgt: [1.9, -0.1, 0] }, // slide to V3
-  { p: 0.74, pos: [1.9, -0.05, 4.1], tgt: [1.9, -0.15, 0] }, // push through V3
-  { p: 0.8, pos: [5.4, 1.6, 5.6], tgt: [0, 0.3, 0] }, // pull back
-  { p: 0.84, pos: [5.0, 2.6, 6.2], tgt: [0, 0.35, 0] }, // rise…
-  { p: 0.88, pos: [4.2, 3.2, 6.0], tgt: [0, 0.4, 0] }, // …to the elevated service view (all three, parts lifted)
+  { p: 0.045, pos: [5.2, 1.0, 6.6], tgt: [0, 0, 0] }, // drift around
+  { p: 0.075, pos: [0, 0.12, 8.8], tgt: [0, 0.12, 0] }, // front dock (trace)
+  { p: 0.26, pos: [0, 0.12, 8.8], tgt: [0, 0.12, 0] }, // hold dock until the plate exits
+  { p: 0.305, pos: [-3.6, -0.25, 6.2], tgt: [-2.5, 0.35, 0] }, // PROBLEM — mains-in side, V1 inlet + feed pipe
+  { p: 0.345, pos: [-2.7, -0.1, 5.2], tgt: [-2.1, 0.1, 0] }, // ease toward V1
+  { p: 0.37, pos: [-1.9, 0.05, 4.6], tgt: [-1.9, -0.1, 0] }, // arrive V1
+  { p: 0.445, pos: [-1.9, -0.05, 4.1], tgt: [-1.9, -0.15, 0] }, // slow push through V1
+  { p: 0.47, pos: [0, 0.05, 4.6], tgt: [0, -0.1, 0] }, // slide to V2 (KDF)
+  { p: 0.575, pos: [0, -0.05, 4.05], tgt: [0, -0.15, 0] }, // deep push through V2 (double dwell)
+  { p: 0.6, pos: [1.9, 0.05, 4.6], tgt: [1.9, -0.1, 0] }, // slide to V3
+  { p: 0.675, pos: [1.9, -0.05, 4.1], tgt: [1.9, -0.15, 0] }, // push through V3
+  { p: 0.725, pos: [3.6, 0.3, 6.4], tgt: [2.7, 0.45, 0] }, // PROOF — machine left of centre, the schedule owns the right
+  { p: 0.78, pos: [5.4, 1.6, 5.6], tgt: [0, 0.3, 0] }, // pull back (credibility orbit)
+  { p: 0.845, pos: [5.0, 2.6, 6.2], tgt: [0, 0.35, 0] }, // rise…
+  { p: 0.885, pos: [4.2, 3.2, 6.0], tgt: [0, 0.4, 0] }, // …to the elevated service view (parts lifted)
   { p: 1.0, pos: [2.8, 0.15, 8.8], tgt: [0, 0.12, 0] }, // settle front, reassembled
 ];
 
@@ -287,7 +295,7 @@ function Rig({ progress, sheetRatio }: { progress: MutableRefObject<number>; she
     const a = CAM[i], b = CAM[i + 1];
     const t = THREE.MathUtils.clamp((p - a.p) / (b.p - a.p || 1), 0, 1);
     // cushion the dock arrival and the final settle
-    const e = b.p === 0.1 || b.p === 1.0 ? ss(t, 0, 1) : t;
+    const e = b.p === 0.075 || b.p === 1.0 ? ss(t, 0, 1) : t;
     sampleRail("pos", i, e, camera.position);
     sampleRail("tgt", i, e, tgt.current);
     // portrait rescue — the hero pose frames all three vessels only above
@@ -296,7 +304,7 @@ function Rig({ progress, sheetRatio }: { progress: MutableRefObject<number>; she
     // registration is derived from the unmodified rail.
     const cam = camera as THREE.PerspectiveCamera;
     const narrow = THREE.MathUtils.clamp((1.15 - cam.aspect) / 0.5, 0, 1);
-    const heroW = narrow * (1 - ss(p, 0.07, 0.1));
+    const heroW = narrow * (1 - ss(p, 0.05, 0.075));
     if (heroW > 0) {
       camera.position.z += heroW * 4.5;
       camera.position.x *= 1 - heroW * 0.3;
@@ -306,7 +314,7 @@ function Rig({ progress, sheetRatio }: { progress: MutableRefObject<number>; she
     // is drawn at SHEET scale — camera.zoom scales the NDC image uniformly
     // about centre (sheet centre == canvas centre), which is an EXACT remap
     // of the calibrated projection. Engages with the dock, releases with reg.
-    const zoomW = ss(p, 0.04, 0.1) * (1 - ss(p, 0.36, 0.44));
+    const zoomW = ss(p, 0.03, 0.075) * (1 - ss(p, 0.26, 0.33));
     // pointer parallax (Phase 2) — the suspended machine answers the cursor
     // everywhere except the trace dock, where registration owns the frame
     const par = 1 - zoomW;
@@ -741,17 +749,17 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
   useFrame((state, delta) => {
     const p = progress.current;
     const g = assy.current;
-    const dock = ss(p, 0.04, 0.1); // settled to dock (drift stops BEFORE the trace)
-    const reg = ss(p, 0.36, 0.44); // dock framing → journey framing (plate exited; widened hold)
+    const dock = ss(p, 0.03, 0.075); // settled to dock (drift stops BEFORE the trace)
+    const reg = ss(p, 0.26, 0.33); // dock framing → journey framing (plate exits into the PROBLEM beat)
     const w = interiorWindows(p);
     const through = Math.max(...w);
-    // Phase 2 — genuine time-staggered deconstruction: heads lift first (in a
-    // slight wave), cartridges follow per-vessel; reassembly mirrors it (carts
-    // seat, then heads close) as the transition into the settle
-    const reformCarts = ss(p, 0.92, 0.96);
-    const reformHeads = ss(p, 0.94, 0.99);
-    const reform = ss(p, 0.92, 0.99);
-    const explode = ss(p, 0.76, 0.9) * (1 - reform); // overall scalar (opacities/labels)
+    // time-staggered deconstruction: heads lift first (in a slight wave),
+    // cartridges follow per-vessel; reassembly mirrors it (carts seat, then
+    // heads close) under the INSTALL beat, into the settle
+    const reformCarts = ss(p, 0.92, 0.945);
+    const reformHeads = ss(p, 0.935, 0.96);
+    const reform = ss(p, 0.92, 0.96);
+    const explode = ss(p, 0.82, 0.92) * (1 - reform); // overall scalar (opacities/labels)
 
     // hysteresis: on at 0.5, off at 0.38 — parking the scrub near a single
     // threshold used to strobe the labels against their 0.45s CSS transition
@@ -827,11 +835,11 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
         });
       }
       const rm = ringMats.current[i];
-      if (rm) rm.emissiveIntensity = hover === i && p > 0.33 ? 2.2 : lerp(1.1, 0.15, through);
+      if (rm) rm.emissiveIntensity = hover === i && p > 0.26 ? 2.2 : lerp(1.1, 0.15, through);
       // service explode, staggered in TIME: heads lead in a wave, cartridges
       // follow each a beat later — parts stay suspended for the whole dwell
-      const headLift = ss(p, 0.76 + i * 0.012, 0.84 + i * 0.012) * (1 - reformHeads);
-      const cartLift = ss(p, 0.79 + i * 0.015, 0.9) * (1 - reformCarts);
+      const headLift = ss(p, 0.82 + i * 0.01, 0.88 + i * 0.01) * (1 - reformHeads);
+      const cartLift = ss(p, 0.84 + i * 0.012, 0.92) * (1 - reformCarts);
       const hg = headGroups.current[i];
       if (hg) hg.position.y = headLift * 1.15;
       const cg = cartGroups.current[i];
@@ -912,7 +920,7 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
           // ring + raises its label; click flies the scroll to its beat.
           // Gated past the dock so nothing fights the ink trace.
           onPointerOver={(e) => {
-            if (progress.current < 0.33) return;
+            if (progress.current < 0.26) return;
             e.stopPropagation();
             setHover(i);
             document.body.style.cursor = "pointer";
@@ -922,7 +930,7 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
             document.body.style.cursor = "";
           }}
           onClick={(e) => {
-            if (progress.current < 0.33 || progress.current > 0.76) return;
+            if (progress.current < 0.26 || progress.current > 0.8) return;
             e.stopPropagation();
             const el = document.getElementById("drawing");
             if (!el) return;
@@ -1147,7 +1155,7 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
                   expands into a spec card on click/keyboard */}
               <Html position={[0.55, 0.2, 0.4]} zIndexRange={[30, 10]} className="xlabel-wrap">
                 <div
-                  className={`xlabel ${labelsOn || (hover === i && progress.current > 0.33) ? "on" : ""} ${openCard === i ? "is-open" : ""}`.trim()}
+                  className={`xlabel ${labelsOn || (hover === i && progress.current > 0.26) ? "on" : ""} ${openCard === i ? "is-open" : ""}`.trim()}
                   aria-hidden={!labelsOn && hover !== i}
                 >
                   <span className="xl-leader" aria-hidden="true" />
