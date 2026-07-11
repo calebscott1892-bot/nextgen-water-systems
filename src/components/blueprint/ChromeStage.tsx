@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "rea
 import * as THREE from "three";
 import { asset } from "@/lib/asset";
 import { BACKDROP_STOPS, BACKDROP_CENTER, BACKDROP_RADII, BACKDROP_FOG } from "./backdrop";
+import { VESSEL_BEAT_P } from "@/content/journeyStory";
 
 /**
  * THE REAL MACHINE — NGW-01 as it actually is: three 20″×4.5″ vessels on a
@@ -72,9 +73,8 @@ const VESSELS = [
   },
 ] as const;
 
-/** where each vessel's water-run beat parks (mid interior window) — the
- *  click-a-vessel scroll target */
-const VESSEL_BEAT_P = [0.425, 0.52, 0.635] as const;
+// (VESSEL_BEAT_P — the click-a-vessel scroll targets — is shared with the
+// blueprint's clickable balloons via content/journeyStory)
 
 /** per-vessel interior windows — the camera parks at each vessel while its
  *  sump ghosts. Shared by the assembly, the lights and the camera breath.
@@ -793,11 +793,14 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
         dm.depthWrite = dm.opacity > 0.5;
       }
       // cap in-window cartridge opacity below 1 so the emissive core reads
-      // through the media wall (full opacity only for the service explode)
+      // through the media wall. For the service explode the cartridge must be
+      // VISIBLY SEATED INSIDE before the lid lifts — presence ramps in ahead
+      // of the head wave, so the part is already there, then rises out
+      const cartPresence = ss(p, 0.8, 0.845) * (1 - ss(p, 0.945, 0.975));
       const cm = cartMats.current[i];
-      if (cm) cm.opacity = Math.max(w[i] * 0.85, explode);
+      if (cm) cm.opacity = Math.max(w[i] * 0.85, cartPresence);
       capMatRefs.current[i].forEach((m) => {
-        if (m) m.opacity = Math.max(w[i] * 0.85, explode);
+        if (m) m.opacity = Math.max(w[i] * 0.85, cartPresence);
       });
       // the printed label ghosts in step with its sump wall
       const lm = labelMatRefs.current[i];
@@ -836,10 +839,10 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
       }
       const rm = ringMats.current[i];
       if (rm) rm.emissiveIntensity = hover === i && p > 0.26 ? 2.2 : lerp(1.1, 0.15, through);
-      // service explode, staggered in TIME: heads lead in a wave, cartridges
-      // follow each a beat later — parts stay suspended for the whole dwell
+      // service explode, staggered in TIME: heads lead in a wave, and the
+      // ALREADY-SEATED cartridges rise out of the open mouths a beat later
       const headLift = ss(p, 0.82 + i * 0.01, 0.88 + i * 0.01) * (1 - reformHeads);
-      const cartLift = ss(p, 0.84 + i * 0.012, 0.92) * (1 - reformCarts);
+      const cartLift = ss(p, 0.855 + i * 0.012, 0.915) * (1 - reformCarts);
       const hg = headGroups.current[i];
       if (hg) hg.position.y = headLift * 1.15;
       const cg = cartGroups.current[i];

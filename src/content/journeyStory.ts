@@ -34,6 +34,17 @@ export type Beat = {
   cue?: string;
 };
 
+/** where each vessel's water-run beat parks — shared by the 3D vessel clicks
+ *  AND the blueprint's clickable balloons/vessels */
+export const VESSEL_BEAT_P = [0.425, 0.52, 0.635] as const;
+
+/** drafted tooltip line per vessel (blueprint hover) */
+export const VESSEL_TIPS = [
+  "01 — GRADED SEDIMENT · 10/5/1 µm*",
+  "02 — KDF 55/85 + CARBON · REDOX*",
+  "03 — LIMESCALE CARBON · 1 µm*",
+] as const;
+
 export const STORY_BEATS: Beat[] = [
   {
     id: "hero", a: -0.05, b: 0.052, f: 0.022, pos: "pb--left",

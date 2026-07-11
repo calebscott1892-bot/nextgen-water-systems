@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { gsap, ScrollTrigger } from "@/lib/gsap";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 import { BACKDROP_CSS } from "./backdrop";
-import { STORY_BEATS } from "@/content/journeyStory";
+import { STORY_BEATS, VESSEL_BEAT_P, VESSEL_TIPS } from "@/content/journeyStory";
 import {
   ASSEMBLY_PATHS,
   ASSEMBLY_CONSTRUCTION,
@@ -75,10 +75,20 @@ export function LivingDrawing() {
   // don't wait on the IntersectionObserver (which also fires unreliably under
   // headless virtual-time). The observer below still PAUSES it once off-screen.
   const [active, setActive] = useState(true);
+  // interactive plate: which vessel is hot (hover on drawing OR its BOM row)
+  const [plateHot, setPlateHot] = useState<number | null>(null);
 
   useEffect(() => {
     setWebgl(!reduced && hasWebGL());
   }, [reduced]);
+
+  // clickable balloons/vessels/BOM rows fly the scroll to that vessel's beat
+  const flyToVessel = useCallback((i: number) => {
+    const el = rootRef.current;
+    if (!el) return;
+    const y = el.offsetTop + VESSEL_BEAT_P[i] * (el.offsetHeight - window.innerHeight);
+    window.scrollTo({ top: y, behavior: "smooth" });
+  }, []);
 
   const handleReady = useCallback(() => setGlReady(true), []);
 
@@ -263,6 +273,8 @@ export function LivingDrawing() {
           // through the middle, un-draw over the last 28%
           const bpU = gsap.utils.clamp(0, 1, Math.min(bp / 0.28, (1 - bp) / 0.28));
           tl.progress(bpU);
+          // the plate's interactive layer is live only while the drawing holds
+          if (sheetRef.current) sheetRef.current.classList.toggle("plate-live", bpU > 0.55);
 
           // Phase 2 — the copy beats: window each HUD element on the raw p
           for (const el of hudEls) {
@@ -367,7 +379,7 @@ export function LivingDrawing() {
             <ChromeStage progress={u3d} active={active} sheetRatio={sheetRatio} onReady={handleReady} />
           </div>
         )}
-        <div className="plate-sheet" ref={sheetRef}>
+        <div className="plate-sheet" ref={sheetRef} data-hot={plateHot ?? undefined}>
           <div className="plate-shadow" aria-hidden="true" />
           <svg ref={svgRef} className="plate-svg" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMid meet">
             <defs>
@@ -517,6 +529,28 @@ export function LivingDrawing() {
               </g>
             </g>
 
+            {/* ── interactive plate: hover a vessel for its drafted spec,
+                click to fly to its beat (live only while the plate holds) ── */}
+            {VESSEL_CX.map((cx, i) => (
+              <g
+                key={`hot${cx}`}
+                className="plate-hot"
+                data-v={i}
+                onPointerEnter={() => setPlateHot(i)}
+                onPointerLeave={() => setPlateHot((h) => (h === i ? null : h))}
+                onClick={() => flyToVessel(i)}
+              >
+                <rect className="plate-glow" x={cx - 90} y={228} width={180} height={368} rx="12" />
+                <g className="plate-tip" transform={`translate(${cx} 680)`}>
+                  <rect x={-124} y={-21} width={248} height={30} fill="url(#vellum)" stroke="#0f2c3b" strokeWidth="1.1" />
+                  <text y={1} textAnchor="middle" className="plate-tip-t">
+                    {VESSEL_TIPS[i]}
+                  </text>
+                </g>
+                <rect className="plate-hit" x={cx - 100} y={212} width={200} height={396} />
+              </g>
+            ))}
+
             {/* establishing scan-line + pencil tip */}
             <rect className="jd-scan" x="22" y="96" width="1156" height="2" fill="#29c2ee" filter="url(#scanblur)" opacity="0" />
             <g className="jd-tip" opacity="0">
@@ -573,10 +607,17 @@ export function LivingDrawing() {
           </div>
 
           {/* bill of materials */}
-          <div className="jd-bomlist" aria-hidden="true">
+          <div className="jd-bomlist">
             <div className="jd-bomlist-head">BILL OF MATERIALS</div>
-            {BOM_ROWS.map((r) => (
-              <div className="jd-bomlist-row" key={r[0]}>
+            {BOM_ROWS.map((r, idx) => (
+              <div
+                className="jd-bomlist-row"
+                key={r[0]}
+                data-v={idx}
+                onMouseEnter={() => setPlateHot(idx)}
+                onMouseLeave={() => setPlateHot((h) => (h === idx ? null : h))}
+                onClick={() => flyToVessel(idx)}
+              >
                 <span>{r[0]}</span>
                 <span>{r[1]}</span>
               </div>
