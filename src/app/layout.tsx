@@ -34,12 +34,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en-AU" className={`${satoshi.variable} ${hanken.variable} ${geistMono.variable}`}>
       <head>
-        {/* start the hero chrome's HDR env fetch at HTML parse — otherwise it
-            waits for hydration → dynamic chunk → <Environment> mount. NO
-            crossOrigin: the HDR is same-origin and THREE.FileLoader fetches it
-            with same-origin credentials — a crossorigin="anonymous" preload
-            mismatches and double-downloads (verified via the console warning). */}
-        <link rel="preload" href={asset("/hdri/studio_small_03_1k.hdr")} as="fetch" />
+        {/* the environment is a pure in-scene Lightformer studio now — no HDR
+            file, nothing to preload, nothing to race */}
         {/* Routed Gothic (SIL OFL — the digitised Leroy/drafting-template
             lettering; licence in public/fonts). Declared here with asset()
             because CSS url("/fonts/…") would skip the basePath and 404 on

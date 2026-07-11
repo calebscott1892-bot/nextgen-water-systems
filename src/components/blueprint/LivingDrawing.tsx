@@ -118,7 +118,7 @@ export function LivingDrawing() {
     glReadyRef.current = glReady;
     if (!glReady || reduced) return;
     const shade = svgRef.current?.querySelector<SVGGElement>(".jd-shade");
-    if (shade) gsap.to(shade, { opacity: 0, duration: 0.4, ease: "power1.out", overwrite: "auto" });
+    if (shade) gsap.to(shade, { opacity: 0, duration: 0.6, ease: "power1.out", overwrite: "auto" });
   }, [glReady, reduced]);
 
   useEffect(() => {
@@ -201,8 +201,12 @@ export function LivingDrawing() {
     const ctx = gsap.context(() => {
       gsap.set(paper, { opacity: 0 });
       // the still stays up as a poster until the GL scene is truly ready
-      // (the glReady effect fades it); without webgl it IS the machine
-      gsap.set(shade, { opacity: webgl && glReadyRef.current ? 0 : 1 });
+      // (the glReady effect fades it); without webgl it IS the machine.
+      // At the very TOP of the page the poster stays hidden — its dock-pose
+      // art doesn't match the hero framing, so the landing loads clean (void
+      // + copy) and the machine simply fades in when the chunk is live
+      const posterWanted = !webgl || (!glReadyRef.current && u3d.current > 0.04);
+      gsap.set(shade, { opacity: posterWanted ? 1 : 0 });
       gsap.set([beds, bom, dimG], { opacity: 0 });
       gsap.set(dimLabel, { opacity: 0 });
       gsap.set(construct, { opacity: 1 });
@@ -628,7 +632,29 @@ export function LivingDrawing() {
             credibility, benefits, install, hand-off; scrubbed windows driven
             from applyFrame; positions leave the framed machine clear */}
         <div className="plate-hud">
-          {STORY_BEATS.map((bt) => (
+          {STORY_BEATS.map((bt) =>
+            bt.id === "hero" ? (
+              /* the LANDING — the page opens as a hero, then scrolls into
+                 the journey */
+              <div key={bt.id} className={`pbeat pb--hero ${bt.pos}`} data-a={bt.a} data-b={bt.b} data-f={bt.f}>
+                <div className="pbh-rule">
+                  <span>NGW-01</span>
+                  <i aria-hidden="true" />
+                  <span>WHOLE-HOME FILTRATION</span>
+                </div>
+                <h1 className="pbh-h">{bt.h}</h1>
+                <p className="pb-body">{bt.body}</p>
+                <div className="pbh-actions">
+                  <a className="pb-cta" href="#plate-cta">
+                    Book your free water test
+                  </a>
+                  <a className="pbh-ghost" href="#drawing">
+                    Read the drawing ↓
+                  </a>
+                </div>
+                <span className="pb-cue">{bt.cue}</span>
+              </div>
+            ) : (
             <div key={bt.id} className={`pbeat ${bt.pos}`} data-a={bt.a} data-b={bt.b} data-f={bt.f}>
               <span className="pb-eyebrow">{bt.eyebrow}</span>
               <h2 className="pb-h">{bt.h}</h2>
@@ -651,7 +677,8 @@ export function LivingDrawing() {
               )}
               {bt.cue && <span className="pb-cue">{bt.cue}</span>}
             </div>
-          ))}
+            ),
+          )}
         </div>
         {/* the DOM half of the unified film stock */}
         <div className="plate-grain" aria-hidden="true" />

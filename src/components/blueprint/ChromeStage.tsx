@@ -5,7 +5,6 @@ import { Environment, ContactShadows, Html, Lightformer } from "@react-three/dre
 import { EffectComposer, Bloom, Vignette, ChromaticAberration, DepthOfField } from "@react-three/postprocessing";
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import * as THREE from "three";
-import { asset } from "@/lib/asset";
 import { BACKDROP_STOPS, BACKDROP_CENTER, BACKDROP_RADII, BACKDROP_FOG } from "./backdrop";
 import { VESSEL_BEAT_P } from "@/content/journeyStory";
 
@@ -240,7 +239,7 @@ type Key = { p: number; pos: [number, number, number]; tgt: [number, number, num
    PROBLEM beat holds the mains-in side while contaminants gather, the PROOF
    beat holds the house-out side as clean water exits. */
 const CAM: Key[] = [
-  { p: 0.0, pos: [3.4, -0.5, 8.6], tgt: [0, 0.15, 0] }, // hero ¾
+  { p: 0.0, pos: [2.9, -0.5, 9.0], tgt: [-1.9, 0.15, 0] }, // hero ¾ — machine right of centre, the landing copy owns the left
   { p: 0.045, pos: [5.2, 1.0, 6.6], tgt: [0, 0, 0] }, // drift around
   { p: 0.075, pos: [0, 0.12, 8.8], tgt: [0, 0.12, 0] }, // front dock (trace)
   { p: 0.26, pos: [0, 0.12, 8.8], tgt: [0, 0.12, 0] }, // hold dock until the plate exits
@@ -792,15 +791,14 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
         dm.opacity = lerp(1, 0.12, w[i]);
         dm.depthWrite = dm.opacity > 0.5;
       }
-      // cap in-window cartridge opacity below 1 so the emissive core reads
-      // through the media wall. For the service explode the cartridge must be
-      // VISIBLY SEATED INSIDE before the lid lifts — presence ramps in ahead
-      // of the head wave, so the part is already there, then rises out
-      const cartPresence = ss(p, 0.8, 0.845) * (1 - ss(p, 0.945, 0.975));
+      // the cartridge is ALWAYS physically there — fully opaque inside its
+      // housing (the sump simply hides it until a lid lifts or a wall ghosts),
+      // easing to 0.85 only inside the interior window so the emissive core
+      // reads through the media wall. Nothing ever fades in or 'appears'.
       const cm = cartMats.current[i];
-      if (cm) cm.opacity = Math.max(w[i] * 0.85, cartPresence);
+      if (cm) cm.opacity = lerp(1, 0.85, w[i]);
       capMatRefs.current[i].forEach((m) => {
-        if (m) m.opacity = Math.max(w[i] * 0.85, cartPresence);
+        if (m) m.opacity = lerp(1, 0.85, w[i]);
       });
       // the printed label ghosts in step with its sump wall
       const lm = labelMatRefs.current[i];
@@ -1340,17 +1338,26 @@ export default function ChromeStage({ progress, active, sheetRatio, onReady }: P
       style={{ position: "absolute", inset: 0 }}
     >
       <Backdrop />
-      {/* Studio HDRI softbox reflections — SELF-HOSTED (public/hdri) so the 3D
-          never depends on a third-party CDN. The SVG plate is the no-WebGL /
-          reduced-motion fallback. */}
-      <Environment files={asset("/hdri/studio_small_03_1k.hdr")} environmentIntensity={0.82}>
-        {/* in-scene softbox accents composited over the HDRI: two tall strips give
-            the sump flanks continuous vertical highlights (the anisotropy stretches
-            them further), one dim warm top-light rounds the head shoulders. All
-            baked into the env map, so the window-dive env scrub dims them too. */}
-        <Lightformer form="rect" position={[-6, 1, 4]} rotation-y={Math.PI / 2.6} scale={[0.9, 6.5, 1]} intensity={0.55} color="#eaf3fa" />
-        <Lightformer form="rect" position={[6, 1, 4]} rotation-y={-Math.PI / 2.6} scale={[0.9, 6.5, 1]} intensity={0.55} color="#eaf3fa" />
-        <Lightformer form="rect" position={[0, 8, 1]} rotation-x={-Math.PI / 2} scale={[9, 4, 1]} intensity={0.3} color="#fff2e2" />
+      {/* PURE IN-SCENE STUDIO (no HDR file): the environment is baked from
+          Lightformers on the first frame — zero network fetch, so the machine
+          is lit the instant the chunk runs. Two tall strips give the sump
+          flanks their signature streaks (the anisotropy stretches them), a
+          large warm overhead rounds the head shoulders, a floor bounce lifts
+          the domes, and a dim backdrop sheet keeps reflections alive from
+          every camera angle. The window-dive env scrub dims all of it. */}
+      <Environment resolution={256} frames={1} environmentIntensity={0.82}>
+        {/* signature vertical streaks */}
+        <Lightformer form="rect" position={[-6, 1, 4]} rotation-y={Math.PI / 2.6} scale={[1.1, 7, 1]} intensity={6.5} color="#eaf3fa" />
+        <Lightformer form="rect" position={[6, 1, 4]} rotation-y={-Math.PI / 2.6} scale={[1.1, 7, 1]} intensity={6.5} color="#eaf3fa" />
+        {/* broad soft KEY, camera-front-left — carries the body of the steel */}
+        <Lightformer form="rect" position={[-3, 2.5, 7]} rotation-y={Math.PI / 8} rotation-x={-Math.PI / 14} scale={[7, 5, 1]} intensity={2.8} color="#f4f9fc" />
+        {/* warm overhead softbox rounds the head shoulders */}
+        <Lightformer form="rect" position={[0, 8, 2]} rotation-x={-Math.PI / 2} scale={[10, 6, 1]} intensity={3.2} color="#fdf4e6" />
+        {/* floor bounce lifts the domes */}
+        <Lightformer form="rect" position={[0, -7, 3]} rotation-x={Math.PI / 2} scale={[9, 5, 1]} intensity={1.3} color="#8fb0c4" />
+        {/* dim sheets behind + in front keep reflections alive at every angle */}
+        <Lightformer form="rect" position={[0, 1.5, -7]} scale={[12, 8, 1]} intensity={1.5} color="#42566a" />
+        <Lightformer form="rect" position={[0, 0.5, 8]} rotation-y={Math.PI} scale={[11, 7, 1]} intensity={1.1} color="#2c3a48" />
       </Environment>
 
       <JourneyLights progress={progress} />

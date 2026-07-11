@@ -622,6 +622,87 @@
        ghosted vessel edge or highlight passes behind it */
     text-shadow: 0 1px 12px rgba(5, 8, 12, 0.85), 0 0 28px rgba(5, 8, 12, 0.6);
   }
+  /* soft halo BEHIND every beat — bulletproof legibility at any viewport,
+     even where bright steel passes directly behind the words */
+  .pbeat::before {
+    content: "";
+    position: absolute;
+    inset: -34px -44px;
+    z-index: -1;
+    background: radial-gradient(closest-side, rgba(4, 8, 12, 0.85), rgba(4, 8, 12, 0.45) 55%, rgba(4, 8, 12, 0) 100%);
+    pointer-events: none;
+  }
+
+  /* ── the LANDING (hero beat) — the page opens as a hero, then scrolls
+     into the journey ── */
+  .pb--hero {
+    max-width: 620px;
+  }
+  .pbh-rule {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-family: var(--font-draft, "Routed Gothic"), var(--font-mono), monospace;
+    font-size: 11px;
+    letter-spacing: 0.26em;
+    color: #29c2ee;
+  }
+  .pbh-rule i {
+    flex: 1;
+    height: 1px;
+    background: rgba(41, 194, 238, 0.35);
+  }
+  .pbh-h {
+    margin-top: 22px;
+    font-family: var(--font-satoshi), sans-serif;
+    font-size: clamp(48px, 6.6vw, 96px);
+    font-weight: 700;
+    line-height: 0.98;
+    letter-spacing: -0.02em;
+    color: #eef7fc;
+    text-wrap: balance;
+  }
+  .pb--hero .pb-body {
+    margin-top: 20px;
+    font-size: 16px;
+    max-width: 44ch;
+  }
+  .pbh-actions {
+    margin-top: 26px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .pb--hero .pb-cta {
+    margin-top: 0;
+    padding: 14px 24px;
+    font-size: 15px;
+    background: #29c2ee;
+    border-color: #29c2ee;
+    color: #05222e;
+    font-weight: 700;
+  }
+  .pb--hero .pb-cta:hover,
+  .pb--hero .pb-cta:focus-visible {
+    background: #4fd3f8;
+    border-color: #4fd3f8;
+  }
+  .pbh-ghost {
+    font-family: var(--font-draft, "Routed Gothic"), var(--font-mono), monospace;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    color: #9fc3d8;
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .pbh-ghost:hover,
+  .pbh-ghost:focus-visible {
+    color: #29c2ee;
+  }
+  .pb--hero .pb-cue {
+    margin-top: 30px;
+  }
   .pb--left {
     left: clamp(24px, 6vw, 96px);
     top: 50%;
