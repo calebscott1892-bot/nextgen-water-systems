@@ -91,9 +91,14 @@ const interiorMax = (p: number) => Math.max(...interiorWindows(p));
    NOTE (review-confirmed): per-material envMapIntensity is a no-op under
    scene.environment (three r163+) — env strength comes solely from
    scene.environmentIntensity (<Environment> prop, scrubbed in JourneyLights). */
-const STEEL = { color: "#b1bcc6", metalness: 1, roughness: 0.26, clearcoat: 1, clearcoatRoughness: 0.09, anisotropy: 0.4, anisotropyRotation: Math.PI / 2 } as const;
+// Slice 4 — matched to the real FHWR-3SI-20 photos: brushed silver-white
+// sumps, matte charcoal heads, powder-coat charcoal frame, brass ports.
+const STEEL = { color: "#c9cecf", metalness: 1, roughness: 0.33, clearcoat: 0.5, clearcoatRoughness: 0.16, anisotropy: 0.5, anisotropyRotation: Math.PI / 2 } as const;
 const CAPS = { color: "#79848e", metalness: 1, roughness: 0.3, clearcoat: 0.6, clearcoatRoughness: 0.22 } as const;
 const MACHINED = { color: "#2b333b", metalness: 0.95, roughness: 0.42 } as const;
+const HEAD = { color: "#23272c", metalness: 0.9, roughness: 0.5 } as const; // matte charcoal cap
+const FRAME = { color: "#2c3034", metalness: 0.42, roughness: 0.6 } as const; // powder-coat cage
+const BRASS = { color: "#b28a4e", metalness: 1, roughness: 0.34 } as const; // connector ports
 const CA_OFFSET = new THREE.Vector2(0.0006, 0.0004);
 
 /** Fullscreen pool-of-light INSIDE the GL frame — same stops as the page CSS
@@ -308,6 +313,10 @@ function Rig({ progress, sheetRatio }: { progress: MutableRefObject<number>; she
       camera.position.z += heroW * 4.5;
       camera.position.x *= 1 - heroW * 0.3;
       camera.position.y += heroW * 0.2;
+      // the hero look-target is shoved left (machine right, copy left) on wide
+      // screens; on portrait there's no room for that — recentre it so the
+      // whole cage stays in frame above the stacked copy
+      tgt.current.x *= 1 - heroW * 0.85;
     }
     // dock registration zoom (Phase 1): the canvas is full-bleed but the ink
     // is drawn at SHEET scale — camera.zoom scales the NDC image uniformly
@@ -855,12 +864,20 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
   const exitLight = useRef<THREE.PointLight | null>(null);
   // meniscus caps make the rising cores read WET
   const menisMats = useRef<(THREE.MeshPhysicalMaterial | null)[]>([]);
+  // ONE shared frame/cage material — one opacity drive fades the whole cage
+  // out during the ink trace (the SVG plate doesn't draw the frame)
+  const frameMat = useMemo(() => new THREE.MeshStandardMaterial({ ...FRAME, transparent: true }), []);
 
   useFrame((state, delta) => {
     const p = progress.current;
     const g = assy.current;
     const dock = ss(p, 0.03, 0.075); // settled to dock (drift stops BEFORE the trace)
     const reg = ss(p, 0.26, 0.33); // dock framing → journey framing (plate exits into the PROBLEM beat)
+    // the cage fades out through the ink trace (the SVG plate draws only the
+    // vessels), full at the hero and after the plate exits
+    const traceHold = ss(p, 0.06, 0.09) * (1 - ss(p, 0.3, 0.34));
+    frameMat.opacity = 1 - traceHold;
+    frameMat.depthWrite = frameMat.opacity > 0.5;
     const w = interiorWindows(p);
     const through = Math.max(...w);
     // time-staggered deconstruction: heads lift first (in a slight wave),
@@ -1126,31 +1143,59 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
         <pointLight ref={exitLight} position={[3.25, 1.4, 0.6]} color="#bfe9ff" intensity={0} distance={2.6} decay={2} />
       </group>
 
-      {/* ── mounting bracket + series pipework (mains → V1 → V2 → V3 → house) ── */}
+      {/* ── the open charcoal steel FRAME/CAGE — the FHWR-3SI-20 silhouette:
+          the vessels hang from a top manifold plate INSIDE a rectangular tube
+          frame (per the real product photos) + series pipework ── */}
       {!hidden("kit") && (
         <>
-          <mesh position={[0, 1.02, -0.6]}>
-            <boxGeometry args={[5.4, 0.26, 0.1]} />
-            <meshStandardMaterial {...MACHINED} />
+          {/* top manifold plate the vessels hang from */}
+          <mesh material={frameMat} position={[0, 1.33, 0]}>
+            <boxGeometry args={[5.72, 0.14, 1.5]} />
           </mesh>
+          {/* four corner posts */}
+          {([[-2.72, 0.66], [2.72, 0.66], [-2.72, -0.66], [2.72, -0.66]] as const).map(([px, pz], k) => (
+            <mesh key={`post${k}`} material={frameMat} position={[px, -0.3, pz]}>
+              <boxGeometry args={[0.09, 3.28, 0.09]} />
+            </mesh>
+          ))}
+          {/* bottom rectangle rails */}
+          <mesh material={frameMat} position={[0, -1.9, 0.66]}>
+            <boxGeometry args={[5.53, 0.09, 0.09]} />
+          </mesh>
+          <mesh material={frameMat} position={[0, -1.9, -0.66]}>
+            <boxGeometry args={[5.53, 0.09, 0.09]} />
+          </mesh>
+          <mesh material={frameMat} position={[-2.72, -1.9, 0]}>
+            <boxGeometry args={[0.09, 0.09, 1.41]} />
+          </mesh>
+          <mesh material={frameMat} position={[2.72, -1.9, 0]}>
+            <boxGeometry args={[0.09, 0.09, 1.41]} />
+          </mesh>
+          {/* top side rails tie the posts to the plate corners */}
+          <mesh material={frameMat} position={[-2.72, 1.27, 0]}>
+            <boxGeometry args={[0.09, 0.12, 1.41]} />
+          </mesh>
+          <mesh material={frameMat} position={[2.72, 1.27, 0]}>
+            <boxGeometry args={[0.09, 0.12, 1.41]} />
+          </mesh>
+          {/* mounting-hole tab, top-left (a real detail from the photo) */}
+          <mesh material={frameMat} position={[-3.04, 1.33, 0]}>
+            <boxGeometry args={[0.5, 0.14, 0.34]} />
+          </mesh>
+          <mesh material={frameMat} position={[-3.14, 1.34, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[0.06, 0.02, 8, 20]} />
+          </mesh>
+
+          {/* series pipework (mains → V1 → V2 → V3 → house), under the plate */}
           {[-2.94, -0.95, 0.95, 2.94].map((x, i) => (
-            <mesh key={x} position={[x, 1.0, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <mesh key={x} material={frameMat} position={[x, 1.0, 0]} rotation={[0, 0, Math.PI / 2]}>
               <cylinderGeometry args={[0.11, 0.11, i === 0 || i === 3 ? 0.6 : 0.44, 20]} />
-              <meshPhysicalMaterial {...CAPS} />
             </mesh>
           ))}
           {/* mains-in / house-out elbows */}
           {[-3.22, 3.22].map((x) => (
-            <mesh key={x} position={[x, 0.9, 0]}>
+            <mesh key={x} material={frameMat} position={[x, 0.9, 0]}>
               <sphereGeometry args={[0.14, 18, 14]} />
-              <meshStandardMaterial {...MACHINED} />
-            </mesh>
-          ))}
-          {/* bracket fixing bolts — hex heads proud of the face */}
-          {[-2.6, -0.85, 0.85, 2.6].map((x) => (
-            <mesh key={`bolt${x}`} position={[x, 1.02, -0.53]} rotation={[Math.PI / 2, 0, 0]}>
-              <cylinderGeometry args={[0.045, 0.045, 0.06, 6]} />
-              <meshPhysicalMaterial {...CAPS} />
             </mesh>
           ))}
         </>
@@ -1191,8 +1236,8 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
             >
               <mesh position={[0, 1.0, 0]}>
                 <cylinderGeometry args={[0.74, 0.74, 0.52, 48]} />
-                {/* concentric turning marks — billet, not primitive */}
-                <meshPhysicalMaterial {...CAPS} roughnessMap={spinMap ?? undefined} />
+                {/* matte charcoal cap (the real heads are dark, not chrome) */}
+                <meshStandardMaterial {...HEAD} roughnessMap={spinMap ?? undefined} />
               </mesh>
               {/* pressure-release button */}
               <mesh position={[0, 1.32, 0]}>
@@ -1214,12 +1259,19 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
                   </mesh>
                 );
               })}
-              {/* port hex bosses where the manifold enters the head */}
+              {/* brass IN/OUT connector ports (the distinctive gold accent) */}
               {[-0.7, 0.7].map((px) => (
-                <mesh key={`boss${px}`} position={[px, 1.0, 0]} rotation={[0, 0, Math.PI / 2]}>
-                  <cylinderGeometry args={[0.135, 0.135, 0.11, 6]} />
-                  <meshStandardMaterial {...MACHINED} />
-                </mesh>
+                <group key={`boss${px}`} position={[px, 1.0, 0]} rotation={[0, 0, Math.PI / 2]}>
+                  <mesh>
+                    <cylinderGeometry args={[0.135, 0.135, 0.11, 6]} />
+                    <meshStandardMaterial {...MACHINED} />
+                  </mesh>
+                  {/* brass threaded insert seated in the port mouth */}
+                  <mesh position={[0, px < 0 ? -0.055 : 0.055, 0]}>
+                    <cylinderGeometry args={[0.088, 0.088, 0.05, 20]} />
+                    <meshStandardMaterial {...BRASS} />
+                  </mesh>
+                </group>
               ))}
               {/* pressure gauge on the head face — dial per vessel */}
               {gaugeMaps && (

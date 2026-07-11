@@ -11,6 +11,21 @@
 
 **Purpose:** ground-truth reference so the 3D scroll journey depicts a *real* filter with *real* parts and the *real* water path — not placeholder geometry. Hand this to the animation agent as source material.
 
+> **⚠️ REAL PRODUCT PHOTOS (client-supplied 2026-07-11) — the 3D asset now
+> matches these.** The physical FHWR-3SI-20 is: an **open charcoal
+> powder-coated steel tube FRAME/CAGE** (rectangular; a top manifold plate the
+> three vessels hang from, four corner posts, bottom rails, a mounting-hole
+> tab top-left); **matte dark-charcoal heads** (NOT bright chrome); **brushed
+> silver-white sumps** (20″×4.5″, slender); **brass IN/OUT connector ports**
+> (gold, the "Brass Connector" callout); **two stainless-bezel + glass
+> pressure gauges** on the top plate; **double black/green O-rings** at the
+> sump threads; red pressure-release buttons. Cartridges out of housing:
+> Stage 1 pink-tinted pleated sediment, Stage 2 white mesh/pleat, Stage 3
+> white body with a **blue collar band**. Media piles: gold KDF granules +
+> black carbon (Metal Guard), coconut carbon (ScaleGuard). The built 3D uses
+> a cyan brand light-ring at each sump base as *our* signature accent (not on
+> the real unit). Photos live with Caleb; observations captured here.
+
 **Read this first — there are two different machines in play:**
 
 - The **reference product** Caleb linked (Clear2o "whole house filtration") is a **3-stage system: Sediment → Sintered Carbon Block → GAC + KDF 55/85. There is NO reverse-osmosis membrane, no post-carbon stage, and no re-mineralisation stage.**
