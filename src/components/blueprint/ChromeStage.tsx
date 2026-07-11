@@ -745,6 +745,117 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
   );
   const sphereGeo = useMemo(() => new THREE.SphereGeometry(1, 10, 8), []);
 
+  /* ---- Slice 3: THE TRANSFORMATION (filter-reference SA-KDF) ----
+     dirty water visibly enters at the mains -> each stage does watchable
+     chemistry -> clean still water rises at the house-out side. Events are
+     time-driven but window-gated: they play while the camera dwells and
+     are fully scroll-reversible. */
+
+  // dirty inflow: rust flakes / grey silt / chlorine-green shimmer drifting
+  // along the feed pipe into V1 during the PROBLEM beat
+  const inflowMats = useMemo(
+    () => [
+      new THREE.MeshStandardMaterial({ color: "#b3552e", roughness: 0.85, transparent: true, opacity: 0, depthWrite: false }),
+      new THREE.MeshStandardMaterial({ color: "#8a8378", roughness: 0.9, transparent: true, opacity: 0, depthWrite: false }),
+      new THREE.MeshStandardMaterial({ color: "#9dbb6e", emissive: "#7a9a4a", emissiveIntensity: 0.35, roughness: 0.6, transparent: true, opacity: 0, depthWrite: false }),
+    ],
+    [],
+  );
+  const inflowSpecs = useMemo(
+    () =>
+      Array.from({ length: 16 }, (_, k) => ({
+        phase: (k / 16 + Math.random() * 0.05) % 1,
+        speed: 0.09 + Math.random() * 0.07,
+        dy: (Math.random() - 0.5) * 0.1,
+        dz: (Math.random() - 0.5) * 0.16,
+        size: 0.016 + Math.random() * 0.022,
+        mi: k % 3,
+      })),
+    [],
+  );
+  const inflowRefs = useRef<(THREE.Mesh | null)[]>([]);
+  const inflowGroup = useRef<THREE.Group | null>(null);
+
+  // KDF micro-events on the bed (V2): lead PLATES on as a growing metallic
+  // skin; H2S collapses into black copper-sulphide grains that STICK;
+  // chlorine DEFUSES into a pair of harmless ions that wash up to the core
+  const platingMat = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: "#cdd6dc", metalness: 1, roughness: 0.22, transparent: true, opacity: 0, depthWrite: false }),
+    [],
+  );
+  const platingSpecs = useMemo(
+    () => [
+      { angle: -0.55, y: -0.15 },
+      { angle: 0.25, y: -0.75 },
+      { angle: 0.85, y: 0.3 },
+      { angle: -1.05, y: -1.05 },
+    ],
+    [],
+  );
+  const platingRefs = useRef<(THREE.Mesh | null)[]>([]);
+  const h2sGasMat = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: "#d9e2c9", emissive: "#a9b686", emissiveIntensity: 0.3, transparent: true, opacity: 0, depthWrite: false }),
+    [],
+  );
+  const h2sGrainMat = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: "#0b0d10", roughness: 0.95, transparent: true, opacity: 0, depthWrite: false }),
+    [],
+  );
+  const h2sSpecs = useMemo(
+    () =>
+      Array.from({ length: 4 }, (_, k) => ({
+        angle: -0.9 + k * 0.55,
+        y: -1.0 + k * 0.42,
+        phase: k * 0.27,
+        speed: 0.16 + (k % 2) * 0.05,
+      })),
+    [],
+  );
+  const h2sGasRefs = useRef<(THREE.Mesh | null)[]>([]);
+  const h2sGrainRefs = useRef<(THREE.Mesh | null)[]>([]);
+  const clGasMat = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: "#b9d98a", emissive: "#8fae55", emissiveIntensity: 0.5, transparent: true, opacity: 0, depthWrite: false }),
+    [],
+  );
+  const clIonMat = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: "#eaf6f0", emissive: "#bfe3d4", emissiveIntensity: 0.4, transparent: true, opacity: 0, depthWrite: false }),
+    [],
+  );
+  const clSpecs = useMemo(
+    () =>
+      Array.from({ length: 3 }, (_, k) => ({
+        angle: 0.5 - k * 0.85,
+        y: -0.55 + k * 0.5,
+        phase: 0.15 + k * 0.31,
+        speed: 0.14 + k * 0.02,
+      })),
+    [],
+  );
+  const clGasRefs = useRef<(THREE.Mesh | null)[]>([]);
+  const clIonRefs = useRef<(THREE.Mesh | null)[][]>([[], [], []]);
+
+  // clean exit: still, clear water rising at the house-out elbow (PROOF)
+  const exitMat = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: "#dff6ff", emissive: "#7fd8f5", emissiveIntensity: 0.7, transparent: true, opacity: 0, depthWrite: false }),
+    [],
+  );
+  const exitSpecs = useMemo(
+    () =>
+      Array.from({ length: 9 }, (_, k) => ({
+        phase: k / 9,
+        speed: 0.16 + Math.random() * 0.06,
+        dx: (Math.random() - 0.5) * 0.14,
+        dz: (Math.random() - 0.5) * 0.14,
+        size: 0.02 + Math.random() * 0.02,
+      })),
+    [],
+  );
+  const exitRefs = useRef<(THREE.Mesh | null)[]>([]);
+  const exitGroup = useRef<THREE.Group | null>(null);
+  const exitLight = useRef<THREE.PointLight | null>(null);
+  // meniscus caps make the rising cores read WET
+  const menisMats = useRef<(THREE.MeshPhysicalMaterial | null)[]>([]);
+
   useFrame((state, delta) => {
     const p = progress.current;
     const g = assy.current;
@@ -862,6 +973,108 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
       });
     }
 
+    // ---- Slice 3: the transformation plays while the camera dwells ----
+    const tt2 = state.clock.elapsedTime;
+    // dirty inflow along the feed pipe (PROBLEM beat -> V1 arrival)
+    const wIn = ss(p, 0.26, 0.3) * (1 - ss(p, 0.41, 0.45));
+    if (inflowGroup.current) inflowGroup.current.visible = wIn > 0.02;
+    if (wIn > 0.02) {
+      inflowSpecs.forEach((sp, k) => {
+        const m = inflowRefs.current[k];
+        if (!m) return;
+        const t01 = (tt2 * sp.speed + sp.phase) % 1;
+        m.position.set(-3.55 + t01 * 1.4, 0.92 + sp.dy + Math.sin(t01 * 9 + k) * 0.05, sp.dz);
+        m.scale.setScalar(sp.size);
+      });
+      inflowMats.forEach((m) => (m.opacity = wIn * 0.9));
+    } else {
+      inflowMats.forEach((m) => (m.opacity = 0));
+    }
+
+    // KDF micro-events (V2's window drives them)
+    const w2live = w[1];
+    // the lead skin GROWS as you push deeper into the visit (scroll-tied)
+    const plateProg = THREE.MathUtils.clamp((p - 0.47) / 0.105, 0, 1);
+    platingRefs.current.forEach((m) => {
+      if (m) m.scale.setScalar(0.012 + plateProg * 0.05);
+    });
+    platingMat.opacity = w2live;
+    if (w2live > 0.02) {
+      h2sSpecs.forEach((sp, k) => {
+        const gas = h2sGasRefs.current[k];
+        const grain = h2sGrainRefs.current[k];
+        if (!gas || !grain) return;
+        const t01 = (tt2 * sp.speed + sp.phase) % 1;
+        const sx = Math.sin(sp.angle);
+        const cz = Math.cos(sp.angle);
+        if (t01 < 0.7) {
+          const r = lerp(0.62, 0.418, t01 / 0.7);
+          gas.position.set(sx * r, sp.y, cz * r);
+          gas.scale.setScalar(0.03);
+          grain.scale.setScalar(1e-4);
+        } else {
+          gas.scale.setScalar(1e-4);
+          grain.position.set(sx * 0.415, sp.y, cz * 0.415);
+          grain.scale.setScalar(Math.sin(((t01 - 0.7) / 0.3) * Math.PI) * 0.032);
+        }
+      });
+      clSpecs.forEach((sp, k) => {
+        const gas = clGasRefs.current[k];
+        const ions = clIonRefs.current[k];
+        if (!gas) return;
+        const t01 = (tt2 * sp.speed + sp.phase) % 1;
+        const sx = Math.sin(sp.angle);
+        const cz = Math.cos(sp.angle);
+        if (t01 < 0.6) {
+          const r = lerp(0.64, 0.43, t01 / 0.6);
+          gas.position.set(sx * r, sp.y, cz * r);
+          gas.scale.setScalar(0.028);
+          ions.forEach((io) => io && io.scale.setScalar(1e-4));
+        } else {
+          gas.scale.setScalar(1e-4);
+          const u = (t01 - 0.6) / 0.4;
+          const env = Math.sin(u * Math.PI) * 0.016;
+          ions.forEach((io, j) => {
+            if (!io) return;
+            const r = lerp(0.43, 0.14, u);
+            io.position.set(sx * r + (j ? 0.05 : -0.05), sp.y + u * 0.8, cz * r);
+            io.scale.setScalar(env);
+          });
+        }
+      });
+      h2sGasMat.opacity = w2live * 0.95;
+      h2sGrainMat.opacity = w2live;
+      clGasMat.opacity = w2live * 0.95;
+      clIonMat.opacity = w2live * 0.9;
+    } else {
+      h2sGasMat.opacity = h2sGrainMat.opacity = clGasMat.opacity = clIonMat.opacity = 0;
+    }
+
+    // clean exit: the payoff — still clear water rising at the OUT elbow
+    const wOut = ss(p, 0.69, 0.72) * (1 - ss(p, 0.78, 0.82));
+    if (exitGroup.current) exitGroup.current.visible = wOut > 0.02;
+    if (exitLight.current) exitLight.current.intensity = wOut * 0.9;
+    if (wOut > 0.02) {
+      exitSpecs.forEach((sp, k) => {
+        const m = exitRefs.current[k];
+        if (!m) return;
+        const t01 = (tt2 * sp.speed + sp.phase) % 1;
+        m.position.set(3.22 + sp.dx + Math.sin(t01 * 6 + k) * 0.03, 1.0 + t01 * 1.05, sp.dz);
+        m.scale.setScalar(sp.size * Math.sin(t01 * Math.PI));
+      });
+      exitMat.opacity = wOut * 0.95;
+    } else {
+      exitMat.opacity = 0;
+    }
+
+    // wet cores: meniscus rides the window; a caustic pulse breathes the glow
+    for (let i = 0; i < 3; i++) {
+      const mm = menisMats.current[i];
+      if (mm) mm.opacity = w[i] * 0.85;
+      const km2 = coreMats.current[i];
+      if (km2) km2.emissiveIntensity = 1.15 + Math.sin(tt2 * 2.6 + i * 1.7) * 0.28 * w[i];
+    }
+
     // interior glow tracks the active vessel (soft, breathing), and its colour
     // tells the water's story: murky at V1, coppery-neutral at V2, clean at V3
     if (boreLight.current) {
@@ -882,6 +1095,36 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
         // cool white-cyan, not saturated cyan — saturated cyan × copper = green
         <pointLight ref={boreLight} position={[0, -0.3, 0.5]} color="#cfeef8" intensity={0} distance={3.2} decay={2} />
       )}
+
+      {/* Slice 3 — dirty water IN at the mains (PROBLEM beat) */}
+      <group ref={inflowGroup} visible={false}>
+        {inflowSpecs.map((sp, k) => (
+          <mesh
+            key={`in${k}`}
+            ref={(el) => {
+              inflowRefs.current[k] = el;
+            }}
+            geometry={sphereGeo}
+            material={inflowMats[sp.mi]}
+            scale={sp.size}
+          />
+        ))}
+      </group>
+      {/* Slice 3 — clean water OUT at the house side (PROOF beat) */}
+      <group ref={exitGroup} visible={false}>
+        {exitSpecs.map((sp, k) => (
+          <mesh
+            key={`ex${k}`}
+            ref={(el) => {
+              exitRefs.current[k] = el;
+            }}
+            geometry={sphereGeo}
+            material={exitMat}
+            scale={sp.size}
+          />
+        ))}
+        <pointLight ref={exitLight} position={[3.25, 1.4, 0.6]} color="#bfe9ff" intensity={0} distance={2.6} decay={2} />
+      </group>
 
       {/* ── mounting bracket + series pipework (mains → V1 → V2 → V3 → house) ── */}
       {!hidden("kit") && (
@@ -1151,6 +1394,22 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
                   opacity={0}
                 />
               </mesh>
+              {/* Slice 3 — meniscus cap: the risen water column reads WET */}
+              <mesh position={[0, 0.64, 0]} scale={[1, 0.4, 1]} renderOrder={3}>
+                <sphereGeometry args={[0.083, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
+                <meshPhysicalMaterial
+                  ref={(el) => {
+                    menisMats.current[i] = el;
+                  }}
+                  color="#bfe9f7"
+                  roughness={0.05}
+                  clearcoat={1}
+                  clearcoatRoughness={0.08}
+                  transparent
+                  opacity={0}
+                  depthWrite={false}
+                />
+              </mesh>
               {/* Phase 2 — the label RIDES the lifted cartridge and is a real
                   interactive text space: leader draws → tag letters → the tag
                   expands into a spec card on click/keyboard */}
@@ -1291,6 +1550,68 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
                     scale={0.01}
                   />
                 ))}
+              {/* Slice 3 — the redox close-ups (filter-reference SA-KDF):
+                  lead plating skins, H2S -> black CuS grains, chlorine
+                  defusing into ion pairs that wash up to the core */}
+              {i === 1 && (
+                <>
+                  {platingSpecs.map((sp, k) => (
+                    <mesh
+                      key={`pl${k}`}
+                      ref={(el) => {
+                        platingRefs.current[k] = el;
+                      }}
+                      geometry={sphereGeo}
+                      material={platingMat}
+                      position={[Math.sin(sp.angle) * 0.405, sp.y, Math.cos(sp.angle) * 0.405]}
+                      scale={0.012}
+                    />
+                  ))}
+                  {h2sSpecs.map((sp, k) => (
+                    <group key={`hs${k}`}>
+                      <mesh
+                        ref={(el) => {
+                          h2sGasRefs.current[k] = el;
+                        }}
+                        geometry={sphereGeo}
+                        material={h2sGasMat}
+                        scale={0.03}
+                      />
+                      <mesh
+                        ref={(el) => {
+                          h2sGrainRefs.current[k] = el;
+                        }}
+                        geometry={sphereGeo}
+                        material={h2sGrainMat}
+                        scale={0.0001}
+                      />
+                    </group>
+                  ))}
+                  {clSpecs.map((sp, k) => (
+                    <group key={`cl${k}`}>
+                      <mesh
+                        ref={(el) => {
+                          clGasRefs.current[k] = el;
+                        }}
+                        geometry={sphereGeo}
+                        material={clGasMat}
+                        scale={0.028}
+                      />
+                      {[0, 1].map((j) => (
+                        <mesh
+                          key={j}
+                          ref={(el) => {
+                            clIonRefs.current[k][j] = el;
+                          }}
+                          geometry={sphereGeo}
+                          material={clIonMat}
+                          scale={0.0001}
+                        />
+                      ))}
+                    </group>
+                  ))}
+                </>
+              )}
             </group>
           )}
 
