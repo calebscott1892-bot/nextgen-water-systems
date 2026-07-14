@@ -49,6 +49,12 @@ const hidden = (k: string) => HIDE.includes(k);
 const ss = (x: number, a: number, b: number) => THREE.MathUtils.smoothstep(x, a, b);
 const lerp = THREE.MathUtils.lerp;
 
+// Damped-interaction tuning — frame-rate-independent via THREE.MathUtils.damp
+// (higher lambda = snappier). These ease ONLY the hover/pointer micro-
+// interactions layered on the journey; the scroll scrub is never touched.
+const HOVER_EMISSIVE_LAMBDA = 12; // ring brighten/dim on hover: crisp, still eased
+const POINTER_LAMBDA = 5; // pointer parallax: smooth float
+
 /* ---- the three vessels (x spacing 1.9; sump r .62, head r .74) ----
    spec fields feed the interactive explode cards (Phase 2) */
 const VESSELS = [
@@ -293,7 +299,10 @@ function sampleRail(sel: "pos" | "tgt", i: number, t: number, out: THREE.Vector3
 function Rig({ progress, sheetRatio }: { progress: MutableRefObject<number>; sheetRatio?: MutableRefObject<number> }) {
   const { camera } = useThree();
   const tgt = useRef(new THREE.Vector3(0, 0.12, 0));
-  useFrame((state) => {
+  // persistent smoothed pointer offset — damps toward the raw pointer each frame
+  // so the parallax floats instead of twitching (applied below the rail base)
+  const ptr = useRef(new THREE.Vector2(0, 0));
+  useFrame((state, delta) => {
     const p = progress.current;
     const i = segIndex(p);
     const a = CAM[i], b = CAM[i + 1];
@@ -327,8 +336,13 @@ function Rig({ progress, sheetRatio }: { progress: MutableRefObject<number>; she
     // pointer parallax (Phase 2) — the suspended machine answers the cursor
     // everywhere except the trace dock, where registration owns the frame
     const par = 1 - zoomW;
-    camera.position.x += state.pointer.x * 0.16 * par;
-    camera.position.y += state.pointer.y * 0.09 * par;
+    // damp the smoothed offset toward the live pointer (frame-rate independent),
+    // then add it on top of the rail-set base — re-based every frame by
+    // sampleRail above, so it never accumulates
+    ptr.current.x = THREE.MathUtils.damp(ptr.current.x, state.pointer.x, POINTER_LAMBDA, delta);
+    ptr.current.y = THREE.MathUtils.damp(ptr.current.y, state.pointer.y, POINTER_LAMBDA, delta);
+    camera.position.x += ptr.current.x * 0.16 * par;
+    camera.position.y += ptr.current.y * 0.09 * par;
     camera.up.set(0, 1, 0);
     camera.lookAt(tgt.current);
     // subtle dolly-zoom "breath" — the lens pushes in at each vessel visit
@@ -965,7 +979,12 @@ function VesselAssembly({ progress }: { progress: MutableRefObject<number> }) {
         });
       }
       const rm = ringMats.current[i];
-      if (rm) rm.emissiveIntensity = hover === i && p > 0.26 ? 2.2 : lerp(1.1, 0.15, through);
+      if (rm) {
+        // damp BOTH directions toward the single target (hover -> 2.2, else the
+        // scroll-driven base) so the ring eases in/out instead of snapping
+        const ringTarget = hover === i && p > 0.26 ? 2.2 : lerp(1.1, 0.15, through);
+        rm.emissiveIntensity = THREE.MathUtils.damp(rm.emissiveIntensity, ringTarget, HOVER_EMISSIVE_LAMBDA, delta);
+      }
       // service explode, staggered in TIME: heads lead in a wave, and the
       // ALREADY-SEATED cartridges rise out of the open mouths a beat later
       const headLift = ss(p, 0.82 + i * 0.01, 0.88 + i * 0.01) * (1 - reformHeads);
